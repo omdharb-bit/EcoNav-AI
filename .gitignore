@@ -37,3 +37,7 @@ yarn-error.log*
 .DS_Store
 *.pem
 .venv
+.venv/
+__pycache__/
+*.pyc
+*.pkl

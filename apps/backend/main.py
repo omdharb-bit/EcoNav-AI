@@ -1,7 +1,20 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from apps.backend.services.ai_model import choose_best_route
+from apps.backend.api.route import router as eco_router
+from apps.backend.services.training_scheduler import scheduler
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start the automated training scheduler loop
+    await scheduler.start()
+    yield
+    # Shutdown: Stop the training task gracefully
+    await scheduler.stop()
+
+app = FastAPI(lifespan=lifespan)
+
+app.include_router(eco_router, prefix="/api/v1")
 
 
 @app.get("/")

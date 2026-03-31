@@ -1,4 +1,6 @@
 import heapq
+import random
+from collections import defaultdict
 
 
 # ===================== GRAPH =====================
@@ -15,24 +17,21 @@ class Graph:
         self.add_city(city1)
         self.add_city(city2)
 
-        # Undirected graph
         self.graph[city1].append((city2, distance, pollution))
         self.graph[city2].append((city1, distance, pollution))
 
-    def get_graph(self):
-        return self.graph
+    def get_neighbors(self, node):
+        return self.graph.get(node, [])
 
 
 # ===================== ROUTING =====================
 
 class Routing:
-    def __init__(self, graph):
+    def __init__(self, graph: Graph):
         self.graph = graph
 
-    def dijkstra(self, start, end, mode="distance", alpha=0.6):
+    def dijkstra(self, start, end, mode="hybrid", alpha=0.5):
         pq = [(0, start, [], 0, 0, 0)]
-        # (cost, node, path, distance, pollution, exposure)
-
         visited = set()
 
         while pq:
@@ -47,96 +46,146 @@ class Routing:
             if node == end:
                 return {
                     "path": path,
-                    "total_cost": cost,
                     "total_distance": dist_sum,
                     "total_pollution": poll_sum,
                     "total_exposure": exp_sum,
-                    "mode": mode
                 }
 
-            for neighbor, distance, pollution in self.graph[node]:
+            for neighbor, distance, pollution in self.graph.get_neighbors(node):
                 if neighbor not in visited:
-
-                    new_dist = dist_sum + distance
-                    new_poll = poll_sum + pollution
-
                     exposure = distance * pollution
-                    new_exp = exp_sum + exposure
 
-                    if mode == "distance":
-                        new_cost = cost + distance
-
-                    elif mode == "eco":
-                        new_cost = cost + exposure
-
-                    elif mode == "hybrid":
-                        beta = 1 - alpha
-                        new_cost = cost + (alpha * distance + beta * exposure)
-
-                    else:
-                        raise ValueError("Invalid mode")
+                    new_cost = cost + (alpha * distance + (1 - alpha) * exposure)
 
                     heapq.heappush(
                         pq,
-                        (new_cost, neighbor, path, new_dist, new_poll, new_exp)
+                        (
+                            new_cost,
+                            neighbor,
+                            path,
+                            dist_sum + distance,
+                            poll_sum + pollution,
+                            exp_sum + exposure,
+                        ),
                     )
-
         return None
 
 
-def get_route(graph, start, end, mode="distance", alpha=0.6):
-    router = Routing(graph)
-    return router.dijkstra(start, end, mode, alpha)
+def get_route(graph, start, end):
+    return Routing(graph).dijkstra(start, end)
 
 
-# ===================== MODELS =====================
+# ===================== RL ENV =====================
 
-class RouteAction:
-    def __init__(self, path, exposure):
-        self.path = path
-        self.exposure = exposure
+class RLEnv:
+    def __init__(self, graph, start, destination):
+        self.graph = graph
+        self.start = start
+        self.destination = destination
+        self.max_steps = 20
+
+    def reset(self):
+        self.current = self.start
+        self.steps = 0
+        return self.current
+
+    def get_possible_actions(self):
+        return [n[0] for n in self.graph.get_neighbors(self.current)]
+
+    def step(self, action):
+        for n, dist, pol in self.graph.get_neighbors(self.current):
+            if n == action:
+                self.current = n
+                self.steps += 1
+
+                reward = -(pol * 0.7 + dist * 0.3)
+                reward += 0.5 * max(0, 10 - pol)
+
+                done = n == self.destination
+
+                if done:
+                    reward += 100
+
+                if self.steps >= self.max_steps:
+                    reward -= 50
+                    done = True
+
+                return self.current, reward, done
+
+        raise ValueError("Invalid action")
 
 
-class RouteObservation:
-    def __init__(self, path, exposure, score):
-        self.path = path
-        self.exposure = exposure
-        self.score = score
+# ===================== Q-LEARNING =====================
 
-
-# ===================== ENV =====================
-
-class PollutionEnv:
+class QAgent:
     def __init__(self):
-        self.total_exposure = 0
+        self.q = defaultdict(lambda: defaultdict(float))
+        self.alpha = 0.1
+        self.gamma = 0.9
+        self.epsilon = 0.2
 
-    def step(self, action: RouteAction):
-        # USE exposure from routing (IMPORTANT)
-        exposure = action.exposure
+    def choose_action(self, state, actions):
+        if random.random() < self.epsilon:
+            return random.choice(actions)
+        return max(actions, key=lambda a: self.q[state][a])
 
-        # scoring
-        max_exposure = 10000
-        score = max(0, 100 - (exposure / max_exposure) * 100)
-
-        reward = -exposure  # lower exposure = better
-
-        self.total_exposure += exposure
-
-        observation = RouteObservation(
-            path=action.path,
-            exposure=exposure,
-            score=score
-        )
-
-        done = True
-
-        return observation, reward, done, {}
+    def update(self, s, a, r, ns, next_actions):
+        max_q = max([self.q[ns][na] for na in next_actions], default=0)
+        self.q[s][a] += self.alpha * (r + self.gamma * max_q - self.q[s][a])
 
 
-# ===================== SIMULATION =====================
+# ===================== TRAIN =====================
 
-def run_simulation():
-    # Create graph
+def train_agent(env, agent, episodes=300):
+    for _ in range(episodes):
+        state = env.reset()
+        done = False
+
+        while not done:
+            actions = env.get_possible_actions()
+            action = agent.choose_action(state, actions)
+
+            next_state, reward, done = env.step(action)
+
+            next_actions = env.get_possible_actions()
+            agent.update(state, action, reward, next_state, next_actions)
+
+            state = next_state
+
+
+# ===================== RL ROUTE =====================
+
+def generate_route(env, agent):
+    state = env.reset()
+    path = [state]
+
+    done = False
+
+    while not done:
+        actions = env.get_possible_actions()
+        action = max(actions, key=lambda a: agent.q[state][a])
+
+        next_state, _, done = env.step(action)
+        path.append(next_state)
+        state = next_state
+
+    return path
+
+
+# ===================== EXPOSURE CALC =====================
+
+def compute_exposure(graph, path):
+    total = 0
+    for i in range(len(path) - 1):
+        for n, dist, pol in graph.get_neighbors(path[i]):
+            if n == path[i + 1]:
+                total += dist * pol
+    return total
+
+
+# ===================== MAIN =====================
+
+def run():
     g = Graph()
 
     g.add_road("A", "B", 5, 10)
@@ -148,35 +197,28 @@ def run_simulation():
     g.add_road("D", "F", 6, 8)
     g.add_road("E", "F", 3, 1)
 
-    graph = g.get_graph()
+    # Baseline
+    baseline = get_route(g, "A", "F")
 
-    # Initialize env
-    env = PollutionEnv()
+    # RL
+    env = RLEnv(g, "A", "F")
+    agent = QAgent()
+    train_agent(env, agent)
 
-    # Get route
-    route_data = get_route(graph, "A", "F", mode="hybrid", alpha=0.5)
+    rl_path = generate_route(env, agent)
 
-    # Convert to action
-    action = RouteAction(
-        path=route_data["path"],
-        exposure=route_data["total_exposure"]
-    )
+    # Compare
+    rl_exposure = compute_exposure(g, rl_path)
 
-    # Run environment
-    observation, reward, done, _ = env.step(action)
+    print("\n🚀 RESULTS")
+    print("Baseline Path:", " → ".join(baseline["path"]))
+    print("Baseline Exposure:", baseline["total_exposure"])
 
-    # Output
-    print("\n🚀 FINAL OUTPUT")
-    print("Path:", " → ".join(observation.path))
-    print("Mode:", route_data["mode"])
-    print("Total Distance:", route_data["total_distance"])
-    print("Total Pollution:", route_data["total_pollution"])
-    print("Total Exposure:", observation.exposure)
-    print("Score:", observation.score)
-    print("Reward:", reward)
+    print("\nRL Path:", " → ".join(rl_path))
+    print("RL Exposure:", rl_exposure)
 
 
 # ===================== RUN =====================
 
 if __name__ == "__main__":
-    run_simulation()
+    run()

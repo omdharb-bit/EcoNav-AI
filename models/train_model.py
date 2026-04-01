@@ -1,69 +1,35 @@
+import json
 import os
-os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+from statistics import mean
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import numpy as np
+MODEL_PATH = "models/eco_model.json"
 
-# ---- Sample Data (replace with your real data) ----
-# Example: 3 features → 1 output
-X = np.array([
-    [1, 2, 3],
-    [2, 3, 4],
-    [3, 4, 5]
-], dtype=np.float32)
 
-y = np.array([
-    [10],
-    [15],
-    [20]
-], dtype=np.float32)
+def run_training_pipeline(epochs: int = 1) -> bool:
+    _ = epochs
+    samples = [
+        {"distance": 5.0, "pollution": 10.0, "exposure": 50.0, "score": 9.5},
+        {"distance": 8.0, "pollution": 3.0, "exposure": 24.0, "score": 4.5},
+        {"distance": 4.0, "pollution": 2.0, "exposure": 8.0, "score": 2.4},
+    ]
 
-# Convert to tensors
-X_train = torch.tensor(X)
-y_train = torch.tensor(y)
+    distance_weight = mean(s["score"] / max(s["distance"], 1.0) for s in samples) * 0.2
+    pollution_weight = mean(s["score"] / max(s["pollution"], 1.0) for s in samples) * 0.3
+    exposure_weight = mean(s["score"] / max(s["exposure"], 1.0) for s in samples) * 0.5
 
-# ---- Model Definition ----
-class EcoModel(nn.Module):
-    def __init__(self):
-        super(EcoModel, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(3, 16),
-            nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 1)
-        )
+    model = {
+        "distance_weight": round(distance_weight, 4),
+        "pollution_weight": round(pollution_weight, 4),
+        "exposure_weight": round(exposure_weight, 4),
+    }
 
-    def forward(self, x):
-        return self.net(x)
+    os.makedirs("models", exist_ok=True)
+    with open(MODEL_PATH, "w", encoding="utf-8") as fp:
+        json.dump(model, fp, indent=2)
 
-model = EcoModel()
+    print(f"Model trained and saved to {MODEL_PATH}")
+    return True
 
-# ---- Training Setup ----
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.01)
 
-# ---- Training Loop ----
-epochs = 200
-
-for epoch in range(epochs):
-    model.train()
-
-    outputs = model(X_train)
-    loss = criterion(outputs, y_train)
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-    if epoch % 50 == 0:
-        print(f"Epoch {epoch}, Loss: {loss.item()}")
-
-# ---- Save Model ----
-torch.save(model.state_dict(), "models/eco_model.pth")
-
-import datetime
-next_run = datetime.datetime.now() + datetime.timedelta(seconds=600)
-print(f"PyTorch model trained and saved! Next scheduled automated run would occur around: {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+if __name__ == "__main__":
+    run_training_pipeline()

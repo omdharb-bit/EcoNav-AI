@@ -1,6 +1,7 @@
 import time
 import threading
 import subprocess
+import datetime
 
 def train_model():
     while True:
@@ -16,7 +17,9 @@ def train_model():
         except Exception as e:
             print("[ERROR] Training failed:", e)
 
-        print("Waiting 10 minutes (600 seconds) until next automated training run...")
+        # Calculate exact next run time
+        next_run = datetime.datetime.now() + datetime.timedelta(seconds=600)
+        print(f"Waiting 10 minutes. Next automated training scheduled at: {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
         time.sleep(600)
 
 

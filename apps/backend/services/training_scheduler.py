@@ -27,7 +27,9 @@ class TrainingScheduler:
                 # so it doesn't freeze the FastAPI asynchronous event loop
                 success = await asyncio.to_thread(run_training_pipeline)
                 if success:
-                    print(f"Automated training completed successfully. Next run in {self.interval_seconds} seconds.")
+                    import datetime
+                    next_run = datetime.datetime.now() + datetime.timedelta(seconds=self.interval_seconds)
+                    print(f"Automated training completed successfully. Next run scheduled at: {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
                 else:
                     print("Automated training skipped.")
             except Exception as e:

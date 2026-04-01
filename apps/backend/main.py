@@ -1,3 +1,6 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from apps.backend.services.ai_model import choose_best_route

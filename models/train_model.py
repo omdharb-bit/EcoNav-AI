@@ -64,4 +64,6 @@ for epoch in range(epochs):
 # ---- Save Model ----
 torch.save(model.state_dict(), "models/eco_model.pth")
 
-print("PyTorch model trained and saved!")
+import datetime
+next_run = datetime.datetime.now() + datetime.timedelta(seconds=600)
+print(f"PyTorch model trained and saved! Next scheduled automated run would occur around: {next_run.strftime('%Y-%m-%d %H:%M:%S')}")

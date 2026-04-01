@@ -1,32 +1,21 @@
-import sys
-import os
+from __future__ import annotations
+
 import random
 
-# Fix path
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
-sys.path.append(BASE_DIR)
-
-from packages.env_core.envs.pollution_env.env import PollutionEnv
 from apps.simulator.evaluator import Graph
+from packages.env_core.envs.pollution_env.env import PollutionEnv
 
-
-# ===================== TEST GRAPH =====================
 
 def test_graph():
-    print("\n🧪 TESTING GRAPH\n")
-
     g = Graph()
     g.add_road("A", "B", 5, 10)
     g.add_road("A", "C", 8, 3)
 
-    print("Neighbors of A:", g.get_neighbors("A"))
+    assert len(g.get_neighbors("A")) == 2
 
-
-# ===================== TEST RL ENV =====================
 
 def test_rl_env():
-    print("\n🚀 TESTING RL ENV\n")
-
+    random.seed(42)
     g = Graph()
 
     g.add_road("A", "B", 5, 10)
@@ -39,29 +28,17 @@ def test_rl_env():
     g.add_road("E", "F", 3, 1)
 
     env = PollutionEnv(g, start="A", destination="F")
-
     state = env.reset()
-    print("Start:", state)
-
     done = False
+    info = {"total_exposure": 0.0}
 
-    while not done:
+    for _ in range(20):
+        if done:
+            break
         actions = env.get_possible_actions()
-
         action = random.choice(actions)
-
-        next_state, reward, done, info = env.step(action)
-
-        print(f"{state} → {action} | reward={reward}")
-
+        next_state, _, done, info = env.step(action)
         state = next_state
 
-    print("\n✅ FINAL RESULT")
-    print("Total Exposure:", info["total_exposure"])
-
-
-# ===================== RUN =====================
-
-if __name__ == "__main__":
-    test_graph()
-    test_rl_env()
+    assert isinstance(state, str)
+    assert info["total_exposure"] >= 0

@@ -1,96 +1,68 @@
-
 # 🌱 EcoNav AI
 
-**AI-powered environmental decision intelligence system for low-exposure route optimization**
+AI-powered environmental routing system that recommends lower-exposure routes instead of only fastest routes.
 
----
+## Project Modules
 
-## 🚀 Problem
+- `apps/backend` — FastAPI service exposing eco-route APIs.
+- `apps/frontend` — Streamlit UI for route exploration.
+- `apps/simulator` — route simulator and fuel-model trainer.
+- `models` — training pipeline and persisted model artifacts.
+- `infra/docker` — production-ready Dockerfiles and compose stack.
+- `infra/ci/github-actions.yml` — CI/CD pipeline for lint, tests, and image builds.
 
-Urban commuters unknowingly expose themselves to harmful air pollution (AQI) while choosing routes based only on time or distance.
+## Quickstart (Local)
 
----
+```bash
+bash infra/scripts/setup.sh
+python scripts/seed_data.py
+python models/train_model.py
+pytest
+uvicorn apps.backend.main:app --reload
+```
 
-## 💡 Solution
+In another terminal:
 
-EcoNav AI recommends **health-aware routes** by combining:
-- Real-time / simulated AQI data
-- Route graph analysis
-- Exposure scoring system
-- AI-based decision policies
+```bash
+streamlit run apps/frontend/app.py
+```
 
----
+## One-command local run
 
-## ⚙️ How It Works
+```bash
+bash infra/scripts/run_all.sh
+```
 
-1. User inputs:
-   - Source
-   - Destination
-   - Preference (fastest / cleanest)
+## Docker run
 
-2. System pipeline:
-   - Generate routes (graph engine)
-   - Enrich with AQI data
-   - Compute exposure per route
-   - Score routes using reward function
-   - Select optimal route via agent
+```bash
+docker compose -f infra/docker/docker-compose.yml up --build
+```
 
----
+- Backend: `http://localhost:8000`
+- Frontend: `http://localhost:8501`
 
-## 🧠 Architecture
+## API Endpoints
 
-- **env-core** → environment simulation (routes + AQI)
-- **exposure-engine** → exposure calculation system
-- **agent-engine** → decision-making logic
-- **backend (FastAPI)** → orchestrates pipeline
-- **frontend (Streamlit)** → user interface
+- `GET /health` — service health/version.
+- `POST /api/v1/eco-route` — compute eco route using start/end nodes.
+- `GET /route` — demo endpoint for route ranking.
 
----
+## CI/CD
 
-## 🏗️ Tech Stack
+GitHub Actions pipeline includes:
 
-- Python
-- FastAPI
-- Streamlit
-- Docker
-- Graph-based routing
-- AI/ML-ready architecture
+1. Dependency install
+2. Data seeding
+3. Ruff lint
+4. Pytest test suite
+5. Smoke test script
+6. Docker image builds for backend/frontend
 
----
+## Hackathon Demo Checklist
 
----
-
-## 🔥 Key Features
-
-- 🌿 Green route optimization  
-- 🧪 Exposure scoring system  
-- 🤖 AI-based decision engine  
-- 📊 Simulation-ready environment  
-- ⚡ Modular monorepo architecture  
-
----
-## 📂 Project Structure
-
-- apps/ → frontend, backend, simulator
-- packages/ → env-core, exposure-engine, agent-engine
-- infra/ → docker & deployment
-- data/ → AQI datasets
----
-
-## 🚀 Future Scope
-
-- Real-time AQI API integration  
-- Reinforcement Learning agent  
-- City-wide pollution heatmaps  
-- Personal exposure tracking  
-
----
-
-
-
----
-
-## ⭐ Vision
-
-> "Not just faster routes — smarter, healthier decisions."
-
+- [x] Frontend + backend connected
+- [x] Training artifact generated (`models/eco_model.json`)
+- [x] Automated retraining scheduler in API lifespan
+- [x] CI pipeline for quality gates
+- [x] Dockerized deployment stack

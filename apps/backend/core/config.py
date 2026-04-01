@@ -1,15 +1,14 @@
+from __future__ import annotations
+
 import os
 
 
 class Settings:
-    APP_NAME = "EcoRoute AI"
-    VERSION = "1.0"
-
-    # Model settings
-    MODEL_PATH = os.getenv("MODEL_PATH", "models/eco_model.pkl")
-
-    # API settings
-    DEBUG = True
+    APP_NAME = "EcoNav AI API"
+    VERSION = "1.0.0"
+    DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+    MODEL_PATH = os.getenv("MODEL_PATH", "models/eco_model.json")
+    TRAINING_INTERVAL_SECONDS = int(os.getenv("TRAINING_INTERVAL_SECONDS", "600"))
 
 
 settings = Settings()

@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/backend.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - TRAINING_INTERVAL_SECONDS=600
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/frontend.Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - ECONAV_API_URL=http://backend:8000
+    depends_on:
+      - backend

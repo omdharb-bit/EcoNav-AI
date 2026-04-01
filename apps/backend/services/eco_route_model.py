@@ -1,98 +1,61 @@
-import torch
-import torch.nn as nn
+import json
 import os
 
-# =========================================================
-# MODEL DEFINITION (MUST MATCH TRAINING EXACTLY)
-# =========================================================
-class EcoModel(nn.Module):
-    def __init__(self):
-        super(EcoModel, self).__init__()
-        self.net = nn.Sequential(
-            nn.Linear(3, 16),
-            nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 1)
-        )
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+MODEL_PATH = os.path.join(BASE_DIR, "models", "eco_model.json")
 
-    def forward(self, x):
-        return self.net(x)
+DEFAULT_WEIGHTS = {
+    "distance_weight": 0.15,
+    "pollution_weight": 0.45,
+    "exposure_weight": 0.4,
+}
+
+_weights = DEFAULT_WEIGHTS.copy()
 
 
-# =========================================================
-# PATH SETUP (FIXED)
-# =========================================================
-BASE_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "../../../")
-)
+def _load_weights() -> bool:
+    global _weights
+    if not os.path.exists(MODEL_PATH):
+        _weights = DEFAULT_WEIGHTS.copy()
+        return False
 
-MODEL_PATH = os.path.join(BASE_DIR, "models", "eco_model.pth")
+    with open(MODEL_PATH, "r", encoding="utf-8") as fp:
+        data = json.load(fp)
 
-
-# =========================================================
-# LOAD MODEL (SAFE + CORRECT)
-# =========================================================
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"Model file not found at: {MODEL_PATH}")
-
-model = EcoModel()
-
-try:
-    model.load_state_dict(
-        torch.load(MODEL_PATH, map_location=torch.device("cpu"))
-    )
-    model.eval()
-    print(f"[OK] EcoModel loaded from: {MODEL_PATH}")
-except Exception as e:
-    raise RuntimeError(f"Model loading failed: {e}")
+    _weights = {
+        "distance_weight": float(
+            data.get("distance_weight", DEFAULT_WEIGHTS["distance_weight"])
+        ),
+        "pollution_weight": float(
+            data.get("pollution_weight", DEFAULT_WEIGHTS["pollution_weight"])
+        ),
+        "exposure_weight": float(
+            data.get("exposure_weight", DEFAULT_WEIGHTS["exposure_weight"])
+        ),
+    }
+    return True
 
 
-# =========================================================
-# HOT RELOAD (OPTIONAL BUT VERY USEFUL)
-# =========================================================
+_load_weights()
+
+
 def reload_model():
-    global model
-    try:
-        new_model = EcoModel()
-        new_model.load_state_dict(
-            torch.load(MODEL_PATH, map_location=torch.device("cpu"))
-        )
-        new_model.eval()
-        model = new_model
-        print("[OK] Model hot-reloaded successfully!")
-    except Exception as e:
-        print(f"[ERROR] Reload failed: {e}")
+    if _load_weights():
+        print("[OK] Model weights hot-reloaded successfully!")
+    else:
+        print(f"[WARN] Model file not found at: {MODEL_PATH}. Using defaults.")
 
 
-# =========================================================
-# FEATURE ADAPTER (ENV → MODEL INPUT)
-# =========================================================
 def predict_score_from_env(state, node, distance, pollution):
-    try:
-        features = [
-            distance / 100.0,
-            pollution / 100.0,
-            state.total_exposure / 100.0
-        ]
-
-        x = torch.tensor([features], dtype=torch.float32)
-
-        with torch.no_grad():
-            prediction = model(x)
-
-        return float(prediction.item())
-
-    except Exception as e:
-        print(f"[ERROR] Prediction failed: {e}")
-        return float("inf")
+    _ = node
+    return (
+        distance * _weights["distance_weight"]
+        + pollution * _weights["pollution_weight"]
+        + state.total_exposure * _weights["exposure_weight"]
+    )
 
 
-# =========================================================
-# DECISION ENGINE (CORE AI LOGIC)
-# =========================================================
 def choose_best_neighbor(state, neighbors, destination):
-
     if not neighbors:
         raise ValueError("No neighbors available for decision")
 
@@ -100,35 +63,12 @@ def choose_best_neighbor(state, neighbors, destination):
     best_score = float("inf")
 
     for node, distance, pollution in neighbors:
-
-        model_score = predict_score_from_env(
-            state,
-            node,
-            distance,
-            pollution
-        )
-
-        # 🎯 destination awareness
+        model_score = predict_score_from_env(state, node, distance, pollution)
         goal_bonus = -10 if node == destination else 0
-
-        final_score = (
-            model_score
-            + 0.3 * (distance / 100.0)
-            + 0.7 * (pollution / 100.0)
-            + goal_bonus
-        )
-
-        print(
-            f"[AI] node={node} | dist={distance} | poll={pollution} "
-            f"| model={model_score:.4f} | final={final_score:.4f}"
-        )
+        final_score = model_score + goal_bonus
 
         if final_score < best_score:
             best_score = final_score
             best_node = node
 
-    if best_node is None:
-        print("[WARN] Model failed, using fallback (min pollution)")
-        best_node = min(neighbors, key=lambda x: x[2])[0]
-
-    return best_node
+    return best_node if best_node is not None else min(neighbors, key=lambda x: x[2])[0]

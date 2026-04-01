@@ -1,1 +1,20 @@
- 
+[project]
+name = "econav-ai"
+version = "0.1.0"
+description = "EcoNav AI - health-aware routing for lower pollution exposure"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/test_pipeline.py" = ["E402"]

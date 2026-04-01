@@ -1,5 +1,6 @@
 from apps.backend.services.eco_route_model import choose_best_neighbor
 from apps.simulator.evaluator import Graph, RLEnv, get_route
+from packages.shared.utils import percent_improvement
 
 
 # =====================
@@ -94,13 +95,7 @@ def get_route_service(start: str, end: str):
     eco_distance = compute_distance(g, eco_path)
 
     # IMPROVEMENT
-    if shortest_exposure > 0:
-        improvement = (
-            (shortest_exposure - eco_exposure) / shortest_exposure * 100
-        )
-        improvement_str = f"{improvement:.2f}% less pollution"
-    else:
-        improvement_str = "N/A"
+    improvement_str = percent_improvement(shortest_exposure, eco_exposure)
 
     # RESPONSE
     return {

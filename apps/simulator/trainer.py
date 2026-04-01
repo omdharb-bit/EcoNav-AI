@@ -1,19 +1,29 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import joblib
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-import joblib
 
-# Load dataset
-data = pd.read_csv("data/routes.csv")
+ROOT = Path(__file__).resolve().parents[2]
+DATA_PATH = ROOT / "data" / "routes.csv"
+MODEL_PATH = ROOT / "models" / "fuel_model.pkl"
 
-# 🔥 Remove NaN values (important fix)
-data = data.dropna()
 
-X = data[["distance", "traffic"]]
-y = data["fuel"]
+def train_fuel_model() -> Path:
+    data = pd.read_csv(DATA_PATH).dropna()
+    x_train = data[["distance", "traffic"]]
+    y_train = data["fuel"]
 
-model = LinearRegression()
-model.fit(X, y)
+    model = LinearRegression()
+    model.fit(x_train, y_train)
 
-joblib.dump(model, "models/fuel_model.pkl")
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, MODEL_PATH)
+    return MODEL_PATH
 
-print("✅ Model trained successfully!")
+
+if __name__ == "__main__":
+    path = train_fuel_model()
+    print(f"✅ Model trained successfully at {path}")

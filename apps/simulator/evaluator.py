@@ -2,7 +2,6 @@ import heapq
 import random
 from collections import defaultdict
 
-
 # ===================== GRAPH =====================
 
 class Graph:

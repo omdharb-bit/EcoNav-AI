@@ -1,3 +1,6 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -61,4 +64,4 @@ for epoch in range(epochs):
 # ---- Save Model ----
 torch.save(model.state_dict(), "models/eco_model.pth")
 
-print("✅ PyTorch model trained and saved!")
+print("PyTorch model trained and saved!")

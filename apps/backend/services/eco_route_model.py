@@ -21,6 +21,16 @@ model = EcoModel()
 model.load_state_dict(torch.load("models/eco_model.pth"))
 model.eval()
 
+def reload_model():
+    global model
+    try:
+        new_model = EcoModel()
+        new_model.load_state_dict(torch.load("models/eco_model.pth"))
+        new_model.eval()
+        model = new_model
+        print("[OK] Active model weights hot-reloaded successfully!")
+    except Exception as e:
+        print(f"[ERROR] Failed to reload model: {e}")
 
 # ---- Prediction function ----
 def predict_score(route):

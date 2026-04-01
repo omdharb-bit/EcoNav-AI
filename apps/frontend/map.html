@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EcoNav AI</title>
+    <meta charset="utf-8" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            margin: 0;
+        }
+
+        h2 {
+            background: black;
+            color: white;
+            padding: 10px;
+            margin: 0;
+        }
+
+        #map {
+            height: 92vh;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>🌍 EcoNav AI - Smart Routing</h2>
+<div id="map"></div>
+
+<script>
+    // =========================
+    // MAP INIT
+    // =========================
+    const map = L.map('map').setView([26, 80], 6);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // =========================
+    // NODE COORDINATES
+    // =========================
+    const coords = {
+        "A": [28.6139, 77.2090], // Delhi
+        "B": [26.9124, 75.7873], // Jaipur
+        "C": [27.1767, 78.0081], // Agra
+        "D": [25.3176, 82.9739], // Varanasi
+        "E": [26.8467, 80.9462], // Lucknow
+        "F": [22.5726, 88.3639]  // Kolkata
+    };
+
+    // =========================
+    // FETCH ROUTE
+    // =========================
+    async function loadRoute() {
+        try {
+            const res = await fetch("http://127.0.0.1:8000/eco-route");
+            const data = await res.json();
+
+            console.log("API DATA:", data);
+
+            // DRAW ORDER MATTERS
+            drawRoute(data.shortest_route, "red");
+            drawRoute(data.eco_route, "green");
+
+            alert("🌱 " + data.improvement);
+
+        } catch (err) {
+            console.error("❌ Failed to load route:", err);
+        }
+    }
+
+    // =========================
+    // DRAW ROUTE
+    // =========================
+    function drawRoute(path, color) {
+        if (!path || path.length === 0) {
+            console.error("Invalid path:", path);
+            return;
+        }
+
+        const offset = color === "green" ? 0.02 : -0.02;
+
+        const latlngs = path.map(city => {
+            if (!coords[city]) {
+                console.error("Missing coord for:", city);
+                return null;
+            }
+            return [
+                coords[city][0] + offset,
+                coords[city][1] + offset
+            ];
+        }).filter(Boolean);
+
+        console.log(color, "route:", latlngs);
+
+        if (latlngs.length === 0) return;
+
+        // DRAW LINE
+        const line = L.polyline(latlngs, {
+            color: color,
+            weight: color === "green" ? 8 : 4,
+            opacity: color === "green" ? 1 : 0.5
+        }).addTo(map);
+
+        // ADD MARKERS
+        latlngs.forEach((point, i) => {
+            L.marker(point).addTo(map)
+                .bindPopup(
+                    (color === "green" ? "🌱 Eco Route: " : "⚡ Shortest: ")
+                    + path[i]
+                );
+        });
+
+        // AUTO ZOOM (only once for eco route)
+        if (color === "green") {
+            map.fitBounds(line.getBounds());
+        }
+    }
+
+    // =========================
+    // RUN
+    // =========================
+    loadRoute();
+
+</script>
+
+</body>
+</html>

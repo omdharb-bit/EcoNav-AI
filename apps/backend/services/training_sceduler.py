@@ -16,7 +16,7 @@ def train_model():
         except Exception as e:
             print("[ERROR] Training failed:", e)
 
-        # wait 10 minutes (600 seconds)
+        print("Waiting 10 minutes (600 seconds) until next automated training run...")
         time.sleep(600)
 
 

@@ -92,43 +92,112 @@ def render_map_view(result: dict) -> None:
     # ---- Leaflet Map Embed ----
     st.markdown('<div class="section-header">🌍 Real-World Map</div>', unsafe_allow_html=True)
 
-    # Build Leaflet HTML for the eco route
-    eco_coords_js = ", ".join(
+    # Build waypoint arrays for JS
+    eco_waypoints_js = ", ".join(
         f"[{NODE_COORDS[n][0]}, {NODE_COORDS[n][1]}]" for n in eco_path if n in NODE_COORDS
     )
-    short_coords_js = ", ".join(
+    short_waypoints_js = ", ".join(
         f"[{NODE_COORDS[n][0]}, {NODE_COORDS[n][1]}]" for n in shortest_path if n in NODE_COORDS
     )
+
+    # Build markers JS
     markers_js = ""
     for n in set(eco_path + shortest_path):
         if n in NODE_COORDS:
             city = CITY_NODES.get(n, n)
-            markers_js += f'L.marker([{NODE_COORDS[n][0]}, {NODE_COORDS[n][1]}]).addTo(map).bindPopup("{city} ({n})");\n'
+            is_start = (n == eco_path[0])
+            is_end = (n == eco_path[-1])
+            if is_start:
+                icon_html = "🟢"
+                label = f"{city} (Start)"
+            elif is_end:
+                icon_html = "🏁"
+                label = f"{city} (End)"
+            else:
+                icon_html = "📍"
+                label = f"{city} ({n})"
+            markers_js += (
+                f'L.marker([{NODE_COORDS[n][0]}, {NODE_COORDS[n][1]}], {{'
+                f'icon: L.divIcon({{html: "<div style=\\"font-size:20px;\\">{icon_html}</div>", '
+                f'className: "", iconSize: [28,28], iconAnchor: [14,14]}})'
+                f'}}).addTo(map).bindPopup("{label}");\n'
+            )
 
     map_html = f"""
-    <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <div id="map" style="height: 400px; width: 100%;"></div>
+    <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); position: relative;">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div id="map" style="height: 450px; width: 100%; background: #0a0f1a;"></div>
+    <div id="map-badge" style="position:absolute;top:10px;right:10px;background:rgba(10,15,26,0.9);
+         color:#94a3b8;padding:6px 14px;border-radius:8px;font-size:11px;font-family:Inter,sans-serif;
+         border:1px solid rgba(255,255,255,0.08);z-index:1000;"></div>
     <script>
-        var map = L.map('map').setView([26, 80], 6);
-        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-            attribution: '© OpenStreetMap'
-        }}).addTo(map);
+        var map = L.map('map').setView([26, 80], 5);
+        L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{{{
+            attribution: '&copy; OpenStreetMap'
+        }}}}).addTo(map);
 
-        // Shortest route (red dashed)
-        var shortCoords = [{short_coords_js}];
-        L.polyline(shortCoords, {{color: '#ef4444', weight: 4, opacity: 0.6, dashArray: '10,6'}}).addTo(map);
+        var ecoWP = [{eco_waypoints_js}];
+        var shortWP = [{short_waypoints_js}];
+        var badge = document.getElementById('map-badge');
 
-        // Eco route (green solid)
-        var ecoCoords = [{eco_coords_js}];
-        L.polyline(ecoCoords, {{color: '#10b981', weight: 6, opacity: 0.9}}).addTo(map);
+        // ── STEP 1: Draw straight lines INSTANTLY ──
+        var shortLine = null, ecoLine = null;
+        if (shortWP.length >= 2) {{{{
+            shortLine = L.polyline(shortWP, {{{{color:'#ef4444',weight:3,opacity:0.5,dashArray:'10,6'}}}}).addTo(map);
+        }}}}
+        if (ecoWP.length >= 2) {{{{
+            ecoLine = L.polyline(ecoWP, {{{{color:'#10b981',weight:5,opacity:0.7}}}}).addTo(map);
+            map.fitBounds(L.latLngBounds(ecoWP), {{{{padding:[40,40]}}}});
+        }}}}
 
         // Markers
         {markers_js}
 
-        map.fitBounds(L.polyline(ecoCoords).getBounds(), {{padding: [30, 30]}});
+        // Legend
+        var legend = L.control({{{{position:'bottomleft'}}}});
+        legend.onAdd = function() {{{{
+            var d = L.DomUtil.create('div');
+            d.style.cssText = 'background:rgba(10,15,26,0.9);padding:10px 14px;border-radius:10px;color:#e2e8f0;font-family:Inter,sans-serif;font-size:12px;border:1px solid rgba(255,255,255,0.08);';
+            d.innerHTML = '<div style="margin-bottom:4px;"><span style="color:#10b981;">━━━</span> Eco Route</div><div><span style="color:#ef4444;">┅┅┅</span> Shortest Route</div>';
+            return d;
+        }}}};
+        legend.addTo(map);
+
+        // ── STEP 2: Upgrade to road routes in background ──
+        badge.textContent = '🛣️ Loading road routes...';
+
+        function decodeP6(enc) {{{{
+            var c=[],i=0,lt=0,ln=0;
+            while(i<enc.length){{{{var b,s=0,r=0;do{{{{b=enc.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}}}}while(b>=0x20);lt+=(r&1)?~(r>>1):(r>>1);s=0;r=0;do{{{{b=enc.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}}}}while(b>=0x20);ln+=(r&1)?~(r>>1):(r>>1);c.push([lt/1e6,ln/1e6]);}}}}
+            return c;
+        }}}}
+
+        function fetchRoad(wp, timeout) {{{{
+            if(wp.length<2) return Promise.resolve(null);
+            var cs = wp.map(function(c){{{{return c[1]+','+c[0];}}}}).join(';');
+            var ctrl = new AbortController();
+            var tid = setTimeout(function(){{{{ctrl.abort();}}}}, timeout);
+            return fetch('https://router.project-osrm.org/route/v1/driving/'+cs+'?overview=full&geometries=polyline6',
+                {{{{signal:ctrl.signal}}}})
+                .then(function(r){{{{return r.json();}}}})
+                .then(function(d){{{{clearTimeout(tid);if(d.code==='Ok'&&d.routes&&d.routes.length>0)return decodeP6(d.routes[0].geometry);return null;}}}})
+                .catch(function(){{{{clearTimeout(tid);return null;}}}});
+        }}}}
+
+        // Fire both requests at once, 4s timeout each
+        Promise.all([fetchRoad(shortWP,4000), fetchRoad(ecoWP,4000)]).then(function(res){{{{
+            if(res[0] && shortLine) {{{{ map.removeLayer(shortLine); L.polyline(res[0],{{{{color:'#ef4444',weight:4,opacity:0.6,dashArray:'10,6'}}}}).addTo(map).bindPopup('🔴 Shortest Route'); }}}}
+            if(res[1] && ecoLine) {{{{ map.removeLayer(ecoLine); L.polyline(res[1],{{{{color:'#10b981',weight:6,opacity:0.9}}}}).addTo(map).bindPopup('🟢 Eco Route'); }}}}
+            badge.textContent = '✅ Road routes loaded';
+            setTimeout(function(){{{{badge.style.display='none';}}}},2000);
+        }}}}).catch(function(){{{{
+            badge.textContent = '📍 Showing straight-line routes';
+            setTimeout(function(){{{{badge.style.display='none';}}}},3000);
+        }}}});
     </script>
     </div>
     """
-    st.components.v1.html(map_html, height=430)
+    st.components.v1.html(map_html, height=480)
+
+

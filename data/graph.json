@@ -34,6 +34,11 @@
       "name": "jabalpur",
       "lat": 23.1701522,
       "lng": 79.9324505
+    },
+    "H": {
+      "name": "katni",
+      "lat": 23.7176393,
+      "lng": 80.2610181
     }
   },
   "roads": [
@@ -101,6 +106,24 @@
       "from": "G",
       "to": "C",
       "distance": 485.8,
+      "pollution": 6
+    },
+    {
+      "from": "H",
+      "to": "G",
+      "distance": 69.5,
+      "pollution": 4
+    },
+    {
+      "from": "H",
+      "to": "D",
+      "distance": 327.1,
+      "pollution": 7
+    },
+    {
+      "from": "H",
+      "to": "E",
+      "distance": 354.7,
       "pollution": 6
     }
   ]

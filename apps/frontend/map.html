@@ -1,54 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>EcoNav AI</title>
+    <title>EcoNav AI - Smart Routing with Live AQI</title>
     <meta charset="utf-8" />
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: Arial;
-            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f1923;
+            color: #e0e0e0;
         }
 
         h2 {
-            background: black;
-            color: white;
-            padding: 10px;
-            margin: 0;
+            background: linear-gradient(90deg, #1a2a3a, #0f1923);
+            color: #4dd0e1;
+            padding: 14px;
             text-align: center;
+            font-size: 1.3em;
+            letter-spacing: 1px;
         }
 
         #controls {
-            padding: 10px;
-            background: #f4f4f4;
+            padding: 12px;
+            background: #1a2a3a;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         select, button {
-            padding: 6px;
+            padding: 8px 14px;
             font-size: 14px;
+            border: 1px solid #4dd0e1;
+            border-radius: 8px;
+            background: #0f1923;
+            color: #4dd0e1;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #4dd0e1;
+            color: #0f1923;
         }
 
         #metrics {
-            padding: 10px;
-            background: #e8f5e9;
+            padding: 12px;
+            background: linear-gradient(90deg, #1b5e20aa, #004d40aa);
             text-align: center;
+            font-size: 14px;
+        }
+
+        #aqi-bar {
+            padding: 10px;
+            background: #1a2a3a;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 13px;
+        }
+
+        .aqi-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         #map {
-            height: 75vh;
+            height: 68vh;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #4dd0e1;
+            font-size: 16px;
         }
     </style>
 </head>
 
 <body>
 
-<h2>🌍 EcoNav AI - Smart Routing</h2>
+<h2>🌍 EcoNav AI - Smart Routing with Live AQI</h2>
+
+<!-- AQI BAR -->
+<div id="aqi-bar">
+    <span style="color:#888">Loading AQI...</span>
+</div>
 
 <!-- CONTROLS -->
 <div id="controls">
@@ -72,26 +119,30 @@
         <option value="A">Delhi</option>
     </select>
 
-    <button onclick="loadRoute()">Find Route</button>
+    <button onclick="loadRoute()">🚀 Find Eco Route</button>
+    <button onclick="loadAQI()">🔄 Refresh AQI</button>
 </div>
 
 <!-- METRICS -->
 <div id="metrics">
     <b>📊 Route Metrics</b><br>
-    Eco Distance: <span id="ecoDist">-</span> |
-    Eco Pollution: <span id="ecoPoll">-</span> |
-    Shortest Pollution: <span id="shortPoll">-</span> |
-    Improvement: <span id="improve">-</span>
+    Eco Distance: <span id="ecoDist">-</span> km |
+    Eco Exposure: <span id="ecoPoll">-</span> |
+    Shortest Exposure: <span id="shortPoll">-</span> |
+    Improvement: <span id="improve" style="color:#4dd0e1; font-weight:bold">-</span> |
+    Data: <span id="dataSource" style="color:#ffd54f">-</span>
 </div>
 
 <!-- MAP -->
 <div id="map"></div>
 
 <script>
+const API_URL = "http://127.0.0.1:8000";
+
 const map = L.map('map').setView([26, 80], 6);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO'
 }).addTo(map);
 
 const coords = {
@@ -103,6 +154,11 @@ const coords = {
     "F": [22.5726, 88.3639]
 };
 
+const cityNames = {
+    "A": "Delhi", "B": "Jaipur", "C": "Agra",
+    "D": "Varanasi", "E": "Lucknow", "F": "Kolkata"
+};
+
 let layers = [];
 
 function clearMap() {
@@ -110,9 +166,48 @@ function clearMap() {
     layers = [];
 }
 
-//////////////////////////////////////////////////
-// ✅ CORRECT OSRM (SINGLE CALL)
-//////////////////////////////////////////////////
+function aqiColor(aqi) {
+    if (aqi <= 50) return "#4CAF50";
+    if (aqi <= 100) return "#FFC107";
+    if (aqi <= 150) return "#FF9800";
+    if (aqi <= 200) return "#F44336";
+    if (aqi <= 300) return "#9C27B0";
+    return "#7E0023";
+}
+
+// Load AQI data
+async function loadAQI() {
+    const bar = document.getElementById("aqi-bar");
+    try {
+        const res = await fetch(`${API_URL}/api/v1/aqi`);
+        const data = await res.json();
+
+        bar.innerHTML = data.cities.map(c => {
+            const color = aqiColor(c.aqi);
+            return `<span class="aqi-chip" style="background:${color}22; border:1px solid ${color}; color:${color}">
+                ${c.city_name}: ${c.aqi} (${c.category})
+            </span>`;
+        }).join("");
+
+        // Add AQI circles to map
+        data.cities.forEach(c => {
+            const color = aqiColor(c.aqi);
+            const circle = L.circleMarker([c.lat, c.lon], {
+                radius: Math.max(8, c.aqi / 15),
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.3,
+                weight: 2
+            }).addTo(map).bindPopup(
+                `<b>${c.city_name}</b><br>AQI: ${c.aqi}<br>${c.category}<br>Dominant: ${c.dominant_pollutant}`
+            );
+            layers.push(circle);
+        });
+    } catch (e) {
+        bar.innerHTML = '<span style="color:#f44336">⚠️ Could not load AQI data</span>';
+    }
+}
+
 async function getFullRealRoute(path) {
     const coordString = path.map(city => {
         const c = coords[city];
@@ -127,16 +222,13 @@ async function getFullRealRoute(path) {
     return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
 }
 
-//////////////////////////////////////////////////
-// 🚗 VEHICLE ANIMATION
-//////////////////////////////////////////////////
 function animateRoute(routeCoords) {
     let i = 0;
 
     const marker = L.circleMarker(routeCoords[0], {
         radius: 8,
-        color: "blue",
-        fillColor: "blue",
+        color: "#4dd0e1",
+        fillColor: "#4dd0e1",
         fillOpacity: 1
     }).addTo(map);
 
@@ -144,19 +236,14 @@ function animateRoute(routeCoords) {
 
     function move() {
         if (i >= routeCoords.length) return;
-
         marker.setLatLng(routeCoords[i]);
         i++;
-
         setTimeout(move, 30);
     }
 
     move();
 }
 
-//////////////////////////////////////////////////
-// ✨ DRAW ANIMATED ROUTE
-//////////////////////////////////////////////////
 async function drawRealRoute(path, color) {
     const fullRoute = await getFullRealRoute(path);
 
@@ -164,8 +251,8 @@ async function drawRealRoute(path, color) {
 
     const line = L.polyline([], {
         color: color,
-        weight: color === "green" ? 10 : 4,
-        opacity: color === "green" ? 0.9 : 0.5
+        weight: color === "#4dd0e1" ? 10 : 4,
+        opacity: color === "#4dd0e1" ? 0.9 : 0.5
     }).addTo(map);
 
     layers.push(line);
@@ -173,30 +260,23 @@ async function drawRealRoute(path, color) {
     for (let i = 0; i < fullRoute.length; i++) {
         drawn.push(fullRoute[i]);
         line.setLatLngs(drawn);
-
         await new Promise(r => setTimeout(r, 5));
     }
 
     map.fitBounds(line.getBounds());
 
-    // animate eco route
-    if (color === "green") {
+    if (color === "#4dd0e1") {
         animateRoute(fullRoute);
     }
 
-    // markers
     path.forEach(city => {
         const marker = L.marker(coords[city])
             .addTo(map)
-            .bindPopup(city);
-
+            .bindPopup(`<b>${cityNames[city]}</b> (${city})`);
         layers.push(marker);
     });
 }
 
-//////////////////////////////////////////////////
-// 🚀 MAIN
-//////////////////////////////////////////////////
 async function loadRoute() {
     const start = document.getElementById("start").value;
     const end = document.getElementById("end").value;
@@ -204,7 +284,7 @@ async function loadRoute() {
     clearMap();
 
     try {
-        const res = await fetch("http://127.0.0.1:8000/eco-route", {
+        const res = await fetch(`${API_URL}/api/v1/eco-route`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ start, end })
@@ -212,21 +292,40 @@ async function loadRoute() {
 
         const data = await res.json();
 
-        await drawRealRoute(data.shortest_route, "red");
-        await drawRealRoute(data.route, "green");
+        await drawRealRoute(data.shortest_route, "#f44336");
+        await drawRealRoute(data.route, "#4dd0e1");
 
         document.getElementById("ecoDist").innerText = data.total_distance;
         document.getElementById("ecoPoll").innerText = data.total_pollution;
         document.getElementById("shortPoll").innerText = data.shortest_exposure;
         document.getElementById("improve").innerText = data.improvement;
+        document.getElementById("dataSource").innerText = data.data_source || "static";
+
+        // Re-add AQI circles
+        if (data.aqi_data) {
+            Object.entries(data.aqi_data).forEach(([code, info]) => {
+                const color = aqiColor(info.aqi);
+                const circle = L.circleMarker(coords[code], {
+                    radius: Math.max(10, info.aqi / 12),
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.4,
+                    weight: 2
+                }).addTo(map).bindPopup(
+                    `<b>${info.city}</b><br>AQI: ${info.aqi}<br>${info.category}<br>Weight: ${info.pollution_weight}`
+                );
+                layers.push(circle);
+            });
+        }
 
     } catch (err) {
         console.error(err);
-        alert("Error loading route");
+        alert("Error loading route. Make sure backend is running.");
     }
 }
 
-// auto load
+// Auto-load
+loadAQI();
 loadRoute();
 </script>
 

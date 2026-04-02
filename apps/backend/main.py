@@ -1,12 +1,17 @@
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from apps.backend.api.aqi import router as aqi_router
+from apps.backend.api.credits import router as credits_router
 from apps.backend.api.route import router as eco_router
+from packages.env_core.core.api import router as openenv_router
 from apps.backend.core.config import settings
 from apps.backend.services.ai_model import choose_best_route
+from apps.backend.services.aqi_service import fetch_route_cities_aqi
 from apps.backend.services.training_scheduler import scheduler
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -14,6 +19,8 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Pre-fetch only route cities (6) for fast startup; full 50+ loaded on demand
+    await asyncio.to_thread(fetch_route_cities_aqi)
     await scheduler.start()
     yield
     await scheduler.stop()
@@ -30,6 +37,11 @@ app.add_middleware(
 )
 
 app.include_router(eco_router, prefix="/api/v1")
+app.include_router(aqi_router, prefix="/api/v1")
+app.include_router(credits_router, prefix="/api/v1")
+
+# OpenEnv standard endpoints at root level for spec compliance
+app.include_router(openenv_router)
 
 
 @app.get("/")

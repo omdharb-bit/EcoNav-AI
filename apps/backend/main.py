@@ -44,10 +44,14 @@ app.include_router(credits_router, prefix="/api/v1")
 app.include_router(openenv_router)
 
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/static", StaticFiles(directory="apps/frontend"), name="static")
+
 @app.get("/")
 def home():
-    return {"message": "EcoNav AI Running 🚀"}
-
+    return FileResponse("apps/frontend/index.html")
 
 @app.get("/health")
 def health():

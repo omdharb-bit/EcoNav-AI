@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoNav AI | Exposure Credit Routing</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar glass">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            EcoNav AI
+        </div>
+        <div class="nav-links">
+            <button class="nav-btn active" id="btn-route">Eco Route Planner</button>
+            <button class="nav-btn" id="btn-aqi">Live AQI Matrix</button>
+        </div>
+    </nav>
+
+    <!-- App Content Wrapper -->
+    <main class="main-content">
+        <!-- Route Planner View -->
+        <section id="view-route" class="animate-in">
+            <div class="hero">
+                <h1>Optimize Air, <br>Maximize Credits.</h1>
+                <p>Find intelligently routed paths that minimize your pollution exposure and maximize gamified Health Credits based on live, real-world constraints.</p>
+            </div>
+
+            <div class="route-grid">
+                <!-- Inputs -->
+                <div class="glass route-form-card">
+                    <h3>Plan Route</h3>
+                    <div class="input-group">
+                        <label for="start-node">Starting City</label>
+                        <select id="start-node">
+                            <option value="A">Delhi (A)</option>
+                            <option value="B">Jaipur (B)</option>
+                            <option value="C">Agra (C)</option>
+                            <option value="D" disabled>Varanasi (D)</option>
+                            <option value="E" disabled>Lucknow (E)</option>
+                            <option value="F" disabled>Kolkata (F)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="end-node">Destination City</label>
+                        <select id="end-node">
+                            <option value="F" selected>Kolkata (F)</option>
+                            <option value="E">Lucknow (E)</option>
+                            <option value="D">Varanasi (D)</option>
+                            <option value="C" disabled>Agra (C)</option>
+                            <option value="B" disabled>Jaipur (B)</option>
+                            <option value="A" disabled>Delhi (A)</option>
+                        </select>
+                    </div>
+                    <button id="submit-route" class="btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                        Compute Route
+                    </button>
+                    
+                    <div id="route-loading" class="loader hidden"></div>
+                    <div id="route-error" style="color: #ef4444; font-size: 14px; margin-top: 1rem;" class="hidden"></div>
+                </div>
+
+                <!-- Results -->
+                <div class="results-area hidden" id="route-results">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        
+                        <!-- Credit Summary Card -->
+                        <div class="glass metric-card" id="card-credit">
+                            <div class="metric-title">Exposure Credits Earned</div>
+                            <div class="metric-value" id="res-credits">+0</div>
+                            <div class="metric-sub" id="res-grade">Grade: ?</div>
+                        </div>
+
+                        <!-- Exposure / Distance -->
+                        <div class="glass metric-card" id="card-eco">
+                            <div class="metric-title">Eco Advantage</div>
+                            <div class="metric-value" id="res-advantage" style="color: #10b981;">0%</div>
+                            <div class="metric-sub">better than shortest path</div>
+                        </div>
+                    </div>
+
+                    <div class="glass metric-card" style="text-align: left; margin-top: 1rem;">
+                        <h3 style="margin-bottom: 1rem;">Optimized Trajectory</h3>
+                        <div id="res-path" style="font-size: 1.5rem; font-family: 'Outfit'; color: var(--accent-secondary); margin-bottom: 0.5rem; letter-spacing: 2px;">
+                            A → B → C
+                        </div>
+                        <div style="display:flex; justify-content: space-between; font-size: 14px; color: var(--text-secondary);">
+                            <span id="res-dist">Total Distance: 0 km</span>
+                            <span id="res-exp">Total Exposure: 0 units</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass metric-card" style="text-align: left; padding: 1.5rem;">
+                        <h4 style="margin-bottom: 1rem;">Segment Breakdown</h4>
+                        <div id="segment-container" style="display:flex; flex-direction: column; gap:0.5rem;">
+                            <!-- Filled dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live AQI Matrix View -->
+        <section id="view-aqi" class="hidden">
+            <div class="hero" style="padding: 2rem 0;">
+                <h2>Real-Time Pollution Grid</h2>
+                <p>Live sensors analyzing exposure risks across 50+ network locations.</p>
+            </div>
+            
+            <div id="aqi-loading" class="loader"></div>
+            <div class="aqi-grid" id="aqi-container">
+                <!-- City Cards injected here via JS -->
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

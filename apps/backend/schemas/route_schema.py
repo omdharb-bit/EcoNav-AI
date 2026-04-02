@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class RouteRequest(BaseModel):
     start: str
     end: str
+    traffic_multiplier: Optional[float] = 1.0
 
 
 class RouteResponse(BaseModel):

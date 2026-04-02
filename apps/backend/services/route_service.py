@@ -50,7 +50,7 @@ def compute_distance(graph: Graph, path: list[str]) -> float:
     return round(total, 2)
 
 
-def _build_graph_with_real_aqi() -> tuple[Graph, dict]:
+def _build_graph_with_real_aqi(traffic_multiplier: float = 1.0) -> tuple[Graph, dict]:
     """Build the city graph using real-time AQI-based pollution weights."""
     # Pre-fetch all cities' AQI in one shot (cached)
     all_aqi = fetch_all_cities_aqi()
@@ -59,17 +59,18 @@ def _build_graph_with_real_aqi() -> tuple[Graph, dict]:
     aqi_info: dict[str, dict] = {}
 
     for (c1, c2), dist in EDGE_DISTANCES.items():
-        pollution = get_edge_pollution(c1, c2)
+        pollution = get_edge_pollution(c1, c2) * traffic_multiplier
         g.add_road(c1, c2, dist, pollution)
 
     # Collect AQI summaries for the response
     for code, aqi_data in all_aqi.items():
+        inflated_aqi = int(aqi_data.aqi * traffic_multiplier)
         aqi_info[code] = {
             "city": aqi_data.city_name,
-            "aqi": aqi_data.aqi,
+            "aqi": inflated_aqi,
             "category": aqi_data.category,
             "dominant_pollutant": aqi_data.dominant_pollutant,
-            "pollution_weight": get_pollution_weight_for_city(code),
+            "pollution_weight": get_pollution_weight_for_city(code) * traffic_multiplier,
             "source": aqi_data.source,
         }
 
@@ -79,10 +80,10 @@ def _build_graph_with_real_aqi() -> tuple[Graph, dict]:
 # =====================
 # MAIN SERVICE
 # =====================
-def get_route_service(start: str, end: str):
+def get_route_service(start: str, end: str, traffic_multiplier: float = 1.0):
     """Compute eco-route using real-time AQI pollution data."""
 
-    g, aqi_info = _build_graph_with_real_aqi()
+    g, aqi_info = _build_graph_with_real_aqi(traffic_multiplier)
 
     # VALIDATION
     if start not in g.graph or end not in g.graph:

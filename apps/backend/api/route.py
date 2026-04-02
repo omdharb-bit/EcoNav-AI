@@ -9,7 +9,7 @@ router = APIRouter()
 @router.post("/eco-route", response_model=RouteResponse)
 def eco_route(req: RouteRequest):
 
-    result = get_route_service(req.start, req.end)
+    result = get_route_service(req.start, req.end, req.traffic_multiplier)
 
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])

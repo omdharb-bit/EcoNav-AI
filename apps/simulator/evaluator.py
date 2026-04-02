@@ -4,6 +4,7 @@ from collections import defaultdict
 
 # ===================== GRAPH =====================
 
+
 class Graph:
     def __init__(self):
         self.graph = {}
@@ -24,6 +25,7 @@ class Graph:
 
 
 # ===================== ROUTING =====================
+
 
 class Routing:
     def __init__(self, graph: Graph):
@@ -76,6 +78,7 @@ def get_route(graph, start, end):
 
 # ===================== RL ENV =====================
 
+
 class RLEnv:
     def __init__(self, graph, start, destination):
         self.graph = graph
@@ -116,6 +119,7 @@ class RLEnv:
 
 # ===================== Q-LEARNING =====================
 
+
 class QAgent:
     def __init__(self):
         self.q = defaultdict(lambda: defaultdict(float))
@@ -134,6 +138,7 @@ class QAgent:
 
 
 # ===================== TRAIN =====================
+
 
 def train_agent(env, agent, episodes=300):
     for _ in range(episodes):
@@ -154,6 +159,7 @@ def train_agent(env, agent, episodes=300):
 
 # ===================== RL ROUTE =====================
 
+
 def generate_route(env, agent):
     state = env.reset()
     path = [state]
@@ -173,6 +179,7 @@ def generate_route(env, agent):
 
 # ===================== EXPOSURE CALC =====================
 
+
 def compute_exposure(graph, path):
     total = 0
     for i in range(len(path) - 1):
@@ -183,6 +190,7 @@ def compute_exposure(graph, path):
 
 
 # ===================== MAIN =====================
+
 
 def run():
     g = Graph()

@@ -13,9 +13,8 @@ MANDATORY
 """
 
 import os
-import json
+
 import requests
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # Environment config
@@ -32,6 +31,7 @@ MAX_STEPS = 15
 # ---------------------------------------------------------------------------
 # Environment interaction helpers
 # ---------------------------------------------------------------------------
+
 
 def env_reset(task_id: str = "easy_route") -> dict:
     """Call /reset endpoint."""
@@ -76,6 +76,7 @@ def env_tasks() -> list[dict]:
 # LLM-based agent (uses OpenAI client)
 # ---------------------------------------------------------------------------
 
+
 def get_llm_action(observation: dict) -> str:
     """Ask the LLM to choose the next city based on observation."""
     from openai import OpenAI
@@ -90,15 +91,15 @@ def get_llm_action(observation: dict) -> str:
     )
 
     prompt = f"""You are an AI navigation agent in the EcoNav environment.
-Your goal: reach {observation['destination']} ({observation['destination_name']}) while maximizing exposure credits.
+Your goal: reach {observation["destination"]} ({observation["destination_name"]}) while maximizing exposure credits.
 
 Current state:
-- Location: {observation['current_city']} ({observation['current_city_name']})
-- Destination: {observation['destination']} ({observation['destination_name']})
-- Credits: {observation['exposure_credits']}
-- Steps: {observation['steps_taken']}/{observation['max_steps']}
-- Visited: {observation['visited']}
-- Total exposure: {observation['total_exposure']}
+- Location: {observation["current_city"]} ({observation["current_city_name"]})
+- Destination: {observation["destination"]} ({observation["destination_name"]})
+- Credits: {observation["exposure_credits"]}
+- Steps: {observation["steps_taken"]}/{observation["max_steps"]}
+- Visited: {observation["visited"]}
+- Total exposure: {observation["total_exposure"]}
 
 Available moves:
 {neighbor_text}
@@ -138,6 +139,7 @@ Reply with ONLY the city code (e.g., "E") — nothing else."""
 # Greedy baseline agent (no LLM needed)
 # ---------------------------------------------------------------------------
 
+
 def greedy_action(observation: dict) -> str:
     """Simple greedy agent: prefer neighbors closer to destination with better AQI."""
     neighbors = observation.get("neighbors", [])
@@ -165,12 +167,13 @@ def greedy_action(observation: dict) -> str:
 # Main inference loop
 # ---------------------------------------------------------------------------
 
+
 def run_episode(task_id: str = "easy_route", use_llm: bool = False) -> dict:
     """Run a complete episode on the given task."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Task: {task_id}")
     print(f"Agent: {'LLM' if use_llm else 'Greedy Baseline'}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     obs = env_reset(task_id)
     print(f"Start: {obs['current_city']} ({obs['current_city_name']})")
@@ -186,7 +189,7 @@ def run_episode(task_id: str = "easy_route", use_llm: bool = False) -> dict:
         else:
             action = greedy_action(obs)
 
-        print(f"\n  Step {obs['steps_taken']+1}: Moving to {action}...")
+        print(f"\n  Step {obs['steps_taken'] + 1}: Moving to {action}...")
 
         # Execute
         result = env_step(action)
@@ -197,12 +200,14 @@ def run_episode(task_id: str = "easy_route", use_llm: bool = False) -> dict:
 
         print(f"    → {obs['current_city']} ({obs['current_city_name']})")
         print(f"    Grade: {info['segment_grade']}, AQI: {info['segment_avg_aqi']}")
-        print(f"    Credits: {info['segment_credit_delta']:+d} → Balance: {obs['exposure_credits']}")
+        print(
+            f"    Credits: {info['segment_credit_delta']:+d} → Balance: {obs['exposure_credits']}"
+        )
         print(f"    Reward: {reward:.2f}")
 
     # Grade
     grade = env_grade()
-    print(f"\n{'─'*60}")
+    print(f"\n{'─' * 60}")
     print(f"RESULT: {grade['grade_letter']} (Score: {grade['score']:.4f})")
     print(f"Route: {' → '.join(grade['route'])}")
     print(f"Credits: {grade['exposure_credits_final']} | Exposure: {grade['total_exposure']}")
@@ -221,21 +226,25 @@ def main():
     for task in tasks:
         use_llm = bool(API_KEY)  # Use LLM if API key is set
         grade = run_episode(task["id"], use_llm=use_llm)
-        results.append({
-            "task": task["id"],
-            "difficulty": task["difficulty"],
-            "score": grade["score"],
-            "grade": grade["grade_letter"],
-            "reached": grade["reached_destination"],
-            "credits": grade["exposure_credits_final"],
-        })
+        results.append(
+            {
+                "task": task["id"],
+                "difficulty": task["difficulty"],
+                "score": grade["score"],
+                "grade": grade["grade_letter"],
+                "reached": grade["reached_destination"],
+                "credits": grade["exposure_credits_final"],
+            }
+        )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     for r in results:
         status = "✅" if r["reached"] else "❌"
-        print(f"  {status} {r['task']:25s} Score={r['score']:.4f}  Grade={r['grade']}  Credits={r['credits']}")
+        print(
+            f"  {status} {r['task']:25s} Score={r['score']:.4f}  Grade={r['grade']}  Credits={r['credits']}"
+        )
 
     avg_score = sum(r["score"] for r in results) / len(results)
     print(f"\n  Average score: {avg_score:.4f}")

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from packages.env_core.envs.pollution_env.env import ExposureCreditEnv, TASKS
+from packages.env_core.envs.pollution_env.env import TASKS, ExposureCreditEnv
 from packages.env_core.envs.pollution_env.models import (
     ResetRequest,
     StepRequest,
@@ -22,6 +22,7 @@ _env = ExposureCreditEnv()
 # ---------------------------------------------------------------------------
 # OpenEnv standard endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/reset")
 def reset(request: ResetRequest | None = None):
@@ -66,6 +67,7 @@ def state():
 # ---------------------------------------------------------------------------
 # Task & Grading endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/tasks")
 def get_tasks():

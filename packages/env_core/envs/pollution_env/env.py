@@ -1,9 +1,6 @@
-
-
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 from apps.backend.services.aqi_service import (
     CITY_PROFILES,
@@ -76,15 +73,19 @@ TASKS: dict[str, TaskConfig] = {
 
 # Edge distances (km) between route cities
 EDGE_DISTANCES: dict[tuple[str, str], float] = {
-    ("A", "B"): 280, ("A", "C"): 230,
-    ("B", "D"): 680, ("C", "D"): 540,
-    ("C", "E"): 330, ("D", "E"): 300,
-    ("D", "F"): 680, ("E", "F"): 990,
+    ("A", "B"): 280,
+    ("A", "C"): 230,
+    ("B", "D"): 680,
+    ("C", "D"): 540,
+    ("C", "E"): 330,
+    ("D", "E"): 300,
+    ("D", "F"): 680,
+    ("E", "F"): 990,
 }
 
 # Adjacency list (bidirectional)
 ADJACENCY: dict[str, list[str]] = {}
-for (c1, c2) in EDGE_DISTANCES:
+for c1, c2 in EDGE_DISTANCES:
     ADJACENCY.setdefault(c1, []).append(c2)
     ADJACENCY.setdefault(c2, []).append(c1)
 
@@ -107,6 +108,7 @@ def _get_city_aqi(code: str) -> int:
 # ---------------------------------------------------------------------------
 # Environment
 # ---------------------------------------------------------------------------
+
 
 class ExposureCreditEnv:
     """OpenEnv-compliant RL environment for exposure-credit navigation."""
@@ -275,8 +277,7 @@ class ExposureCreditEnv:
             step_score = 0.0
 
         final_score = round(
-            0.4 * dest_score + 0.3 * credit_score +
-            0.2 * exposure_score + 0.1 * step_score,
+            0.4 * dest_score + 0.3 * credit_score + 0.2 * exposure_score + 0.1 * step_score,
             4,
         )
 
@@ -323,14 +324,16 @@ class ExposureCreditEnv:
         for nb in ADJACENCY.get(self._current, []):
             aqi = _get_city_aqi(nb)
             g = get_grade_for_aqi(aqi)
-            neighbors_info.append(NeighborInfo(
-                city=nb,
-                city_name=_get_city_name(nb),
-                distance=_get_distance(self._current, nb),
-                aqi=aqi,
-                grade=g["grade"],
-                credit_delta=g["credits"],
-            ))
+            neighbors_info.append(
+                NeighborInfo(
+                    city=nb,
+                    city_name=_get_city_name(nb),
+                    distance=_get_distance(self._current, nb),
+                    aqi=aqi,
+                    grade=g["grade"],
+                    credit_delta=g["credits"],
+                )
+            )
 
         return Observation(
             current_city=self._current,

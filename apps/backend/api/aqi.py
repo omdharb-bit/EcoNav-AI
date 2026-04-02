@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Query
 from apps.backend.services.aqi_service import (
     CITY_PROFILES,
     city_aqi_to_dict,
-    fetch_aqi_by_coords,
     fetch_all_cities_aqi,
+    fetch_aqi_by_coords,
     fetch_city_aqi,
     search_cities,
 )
@@ -18,7 +18,9 @@ router = APIRouter(tags=["Air Quality"])
 
 @router.get("/aqi")
 def get_all_aqi(
-    region: str | None = Query(None, description="Filter: north, south, east, west, central, metro"),
+    region: str | None = Query(
+        None, description="Filter: north, south, east, west, central, metro"
+    ),
 ):
     """Get real-time AQI for all 50+ configured Indian cities."""
     all_data = fetch_all_cities_aqi()
@@ -30,14 +32,33 @@ def get_all_aqi(
     # Optional region filter
     if region:
         region_map = {
-            "north":   ["A", "B", "C", "D", "E", "CHD", "AMR", "LDH", "DHR", "SML", "KNP",
-                        "ALD", "MRT", "NDA", "GZB", "FBD", "GGN", "GWL", "JAM", "SRN"],
-            "south":   ["CHN", "BLR", "HYD", "COK", "TRV", "MYS", "VIZ", "MDR", "CBE",
-                        "TRC", "VJW"],
-            "east":    ["F", "PAT", "GYA", "RAN", "BBS", "GUW", "IMP", "SHL"],
-            "west":    ["MUM", "PNE", "AMD", "SRT", "UDR", "JDH", "GOA", "RAJ", "VDR"],
+            "north": [
+                "A",
+                "B",
+                "C",
+                "D",
+                "E",
+                "CHD",
+                "AMR",
+                "LDH",
+                "DHR",
+                "SML",
+                "KNP",
+                "ALD",
+                "MRT",
+                "NDA",
+                "GZB",
+                "FBD",
+                "GGN",
+                "GWL",
+                "JAM",
+                "SRN",
+            ],
+            "south": ["CHN", "BLR", "HYD", "COK", "TRV", "MYS", "VIZ", "MDR", "CBE", "TRC", "VJW"],
+            "east": ["F", "PAT", "GYA", "RAN", "BBS", "GUW", "IMP", "SHL"],
+            "west": ["MUM", "PNE", "AMD", "SRT", "UDR", "JDH", "GOA", "RAJ", "VDR"],
             "central": ["BPL", "IND", "JBP", "NGP", "RPR"],
-            "metro":   ["A", "MUM", "BLR", "CHN", "HYD", "F", "PNE", "AMD"],
+            "metro": ["A", "MUM", "BLR", "CHN", "HYD", "F", "PNE", "AMD"],
         }
         allowed = set(region_map.get(region.lower(), []))
         if allowed:

@@ -6,17 +6,18 @@ step results, and task/grading structures following OpenEnv spec.
 
 from __future__ import annotations
 
-from typing import Any, List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Observation & Action spaces
 # ---------------------------------------------------------------------------
 
+
 class NeighborInfo(BaseModel):
     """Information about a reachable neighboring city."""
+
     city: str = Field(description="City code")
     city_name: str = Field(description="City name")
     distance: float = Field(description="Distance in km")
@@ -27,6 +28,7 @@ class NeighborInfo(BaseModel):
 
 class Observation(BaseModel):
     """Full observation returned to the agent at each step."""
+
     current_city: str = Field(description="Current city code")
     current_city_name: str = Field(description="Human-readable city name")
     destination: str = Field(description="Target destination code")
@@ -42,6 +44,7 @@ class Observation(BaseModel):
 
 class Action(BaseModel):
     """Action the agent takes — choose next city to move to."""
+
     city: str = Field(description="City code to move to (must be a valid neighbor)")
 
 
@@ -49,8 +52,10 @@ class Action(BaseModel):
 # Step result
 # ---------------------------------------------------------------------------
 
+
 class StepResult(BaseModel):
     """Result of executing an action in the environment."""
+
     observation: Observation
     reward: float = Field(description="Reward for this step")
     done: bool = Field(description="Episode finished?")
@@ -61,8 +66,10 @@ class StepResult(BaseModel):
 # Episode state (for state() endpoint)
 # ---------------------------------------------------------------------------
 
+
 class EpisodeState(BaseModel):
     """Full episode metadata accessible via state() endpoint."""
+
     episode_id: str
     task_id: str
     step_count: int
@@ -80,8 +87,10 @@ class EpisodeState(BaseModel):
 # Task & Grading
 # ---------------------------------------------------------------------------
 
+
 class TaskConfig(BaseModel):
     """Task definition for the environment."""
+
     id: str
     name: str
     description: str
@@ -94,6 +103,7 @@ class TaskConfig(BaseModel):
 
 class GradeResult(BaseModel):
     """Grading result for a completed episode."""
+
     task_id: str
     score: float = Field(ge=0.0, le=1.0, description="Final score 0.0-1.0")
     reached_destination: bool
@@ -109,11 +119,14 @@ class GradeResult(BaseModel):
 # API request/response wrappers
 # ---------------------------------------------------------------------------
 
+
 class ResetRequest(BaseModel):
     """Request body for reset() endpoint."""
+
     task_id: str = Field(default="easy_route", description="Which task to start")
 
 
 class StepRequest(BaseModel):
     """Request body for step() endpoint."""
+
     action: Action

@@ -23,15 +23,11 @@ def _load_weights() -> bool:
         data = json.load(fp)
 
     _weights = {
-        "distance_weight": float(
-            data.get("distance_weight", DEFAULT_WEIGHTS["distance_weight"])
-        ),
+        "distance_weight": float(data.get("distance_weight", DEFAULT_WEIGHTS["distance_weight"])),
         "pollution_weight": float(
             data.get("pollution_weight", DEFAULT_WEIGHTS["pollution_weight"])
         ),
-        "exposure_weight": float(
-            data.get("exposure_weight", DEFAULT_WEIGHTS["exposure_weight"])
-        ),
+        "exposure_weight": float(data.get("exposure_weight", DEFAULT_WEIGHTS["exposure_weight"])),
     }
     return True
 

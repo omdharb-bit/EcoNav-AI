@@ -21,8 +21,6 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from apps.backend.services.aqi_service import (
-    CityAQI,
-    _aqi_category,
     _cache,
     fetch_city_aqi,
 )
@@ -36,12 +34,54 @@ MAX_CREDITS = 1000
 MIN_CREDITS = 0
 
 GRADE_TABLE = [
-    {"max_aqi": 50,  "grade": "A", "label": "Pristine Air",  "emoji": "🟢", "credits": +10, "color": "#4CAF50"},
-    {"max_aqi": 100, "grade": "B", "label": "Acceptable",    "emoji": "🟡", "credits": +5,  "color": "#FFC107"},
-    {"max_aqi": 150, "grade": "C", "label": "Moderate Risk",  "emoji": "🟠", "credits": 0,   "color": "#FF9800"},
-    {"max_aqi": 200, "grade": "D", "label": "High Risk",      "emoji": "🔴", "credits": -5,  "color": "#F44336"},
-    {"max_aqi": 300, "grade": "E", "label": "Dangerous",      "emoji": "🟣", "credits": -15, "color": "#9C27B0"},
-    {"max_aqi": 999, "grade": "F", "label": "Hazardous",      "emoji": "⚫", "credits": -25, "color": "#7E0023"},
+    {
+        "max_aqi": 50,
+        "grade": "A",
+        "label": "Pristine Air",
+        "emoji": "🟢",
+        "credits": +10,
+        "color": "#4CAF50",
+    },
+    {
+        "max_aqi": 100,
+        "grade": "B",
+        "label": "Acceptable",
+        "emoji": "🟡",
+        "credits": +5,
+        "color": "#FFC107",
+    },
+    {
+        "max_aqi": 150,
+        "grade": "C",
+        "label": "Moderate Risk",
+        "emoji": "🟠",
+        "credits": -5,
+        "color": "#FF9800",
+    },
+    {
+        "max_aqi": 200,
+        "grade": "D",
+        "label": "High Risk",
+        "emoji": "🔴",
+        "credits": -15,
+        "color": "#F44336",
+    },
+    {
+        "max_aqi": 300,
+        "grade": "E",
+        "label": "Dangerous",
+        "emoji": "🟣",
+        "credits": -30,
+        "color": "#9C27B0",
+    },
+    {
+        "max_aqi": 999,
+        "grade": "F",
+        "label": "Hazardous",
+        "emoji": "⚫",
+        "credits": -50,
+        "color": "#7E0023",
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -106,7 +146,8 @@ class UserWallet:
 
 _WALLETS_PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../")),
-    "data", "wallets.json",
+    "data",
+    "wallets.json",
 )
 
 _wallets: dict[str, UserWallet] = {}
@@ -136,6 +177,7 @@ _load_wallets()
 # ---------------------------------------------------------------------------
 # Grading helpers
 # ---------------------------------------------------------------------------
+
 
 def get_grade_for_aqi(aqi: int) -> dict:
     """Get grade info for a given AQI value."""
@@ -170,7 +212,8 @@ def grade_segment(from_code: str, to_code: str, distance: float = 0) -> SegmentC
 
     from_aqi = aqi_from.aqi if aqi_from else 100
     to_aqi = aqi_to.aqi if aqi_to else 100
-    avg_aqi = (from_aqi + to_aqi) // 2
+    avg_aqi = max(from_aqi, to_aqi) # Maximize exposure risk instead of averaging
+
 
     g = get_grade_for_aqi(avg_aqi)
 
@@ -190,6 +233,7 @@ def grade_segment(from_code: str, to_code: str, distance: float = 0) -> SegmentC
 # ---------------------------------------------------------------------------
 # Route credit calculation
 # ---------------------------------------------------------------------------
+
 
 def calculate_route_credits(
     route: list[str],
@@ -272,6 +316,7 @@ def calculate_route_credits(
 # Wallet management
 # ---------------------------------------------------------------------------
 
+
 def get_or_create_wallet(user_id: str) -> UserWallet:
     if user_id not in _wallets:
         _wallets[user_id] = UserWallet(user_id=user_id)
@@ -296,15 +341,18 @@ def apply_route_credits(user_id: str, route_credits: RouteCredits) -> UserWallet
     if route_credits.overall_grade in ("A", "B"):
         wallet.green_trips += 1
 
-    wallet.history.insert(0, {
-        "route": route_credits.route,
-        "credit_change": delta,
-        "eco_bonus": route_credits.eco_bonus,
-        "grade": route_credits.overall_grade,
-        "old_balance": old_balance,
-        "new_balance": wallet.credits,
-        "timestamp": time.time(),
-    })
+    wallet.history.insert(
+        0,
+        {
+            "route": route_credits.route,
+            "credit_change": delta,
+            "eco_bonus": route_credits.eco_bonus,
+            "grade": route_credits.overall_grade,
+            "old_balance": old_balance,
+            "new_balance": wallet.credits,
+            "timestamp": time.time(),
+        },
+    )
     wallet.history = wallet.history[:20]  # keep last 20
     wallet.updated_at = time.time()
 
@@ -330,6 +378,7 @@ def get_leaderboard() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Serialization
 # ---------------------------------------------------------------------------
+
 
 def route_credits_to_dict(rc: RouteCredits) -> dict[str, Any]:
     return {

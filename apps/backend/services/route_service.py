@@ -18,14 +18,14 @@ from packages.shared.utils import percent_improvement
 
 # Default static distances (km) between cities — real distances along roads
 EDGE_DISTANCES: dict[tuple[str, str], float] = {
-    ("A", "B"): 280,   # Delhi → Jaipur
-    ("A", "C"): 230,   # Delhi → Agra
-    ("B", "D"): 680,   # Jaipur → Varanasi
-    ("C", "D"): 540,   # Agra → Varanasi
-    ("C", "E"): 330,   # Agra → Lucknow
-    ("D", "E"): 300,   # Varanasi → Lucknow
-    ("D", "F"): 680,   # Varanasi → Kolkata
-    ("E", "F"): 990,   # Lucknow → Kolkata
+    ("A", "B"): 280,  # Delhi → Jaipur
+    ("A", "C"): 230,  # Delhi → Agra
+    ("B", "D"): 680,  # Jaipur → Varanasi
+    ("C", "D"): 540,  # Agra → Varanasi
+    ("C", "E"): 330,  # Agra → Lucknow
+    ("D", "E"): 300,  # Varanasi → Lucknow
+    ("D", "F"): 680,  # Varanasi → Kolkata
+    ("E", "F"): 990,  # Lucknow → Kolkata
 }
 
 

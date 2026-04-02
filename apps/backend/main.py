@@ -4,16 +4,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from apps.backend.api.aqi import router as aqi_router
 from apps.backend.api.credits import router as credits_router
 from apps.backend.api.network import router as network_router
 from apps.backend.api.route import router as eco_router
-from packages.env_core.core.api import router as openenv_router
+from apps.backend.api.simulate import router as simulate_router
 from apps.backend.core.config import settings
 from apps.backend.services.ai_model import choose_best_route
 from apps.backend.services.aqi_service import fetch_route_cities_aqi
 from apps.backend.services.training_scheduler import scheduler
+from packages.env_core.core.api import router as openenv_router
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -41,19 +44,19 @@ app.include_router(eco_router, prefix="/api/v1")
 app.include_router(aqi_router, prefix="/api/v1")
 app.include_router(credits_router, prefix="/api/v1")
 app.include_router(network_router, prefix="/api/v1")
+app.include_router(simulate_router, prefix="/api/v1")
 
 # OpenEnv standard endpoints at root level for spec compliance
 app.include_router(openenv_router)
 
 
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-
 app.mount("/static", StaticFiles(directory="apps/frontend"), name="static")
+
 
 @app.get("/")
 def home():
     return FileResponse("apps/frontend/index.html")
+
 
 @app.get("/health")
 def health():

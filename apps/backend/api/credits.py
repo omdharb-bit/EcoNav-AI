@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-
 from fastapi import APIRouter, HTTPException, Query
 
 from apps.backend.services.exposure_credit import (
@@ -81,7 +79,9 @@ def get_city_grade(city_code: str):
     city_code = city_code.strip().upper()
     cg = grade_city(city_code)
     if not cg:
-        raise HTTPException(status_code=404, detail=f"City {city_code} not found or AQI unavailable")
+        raise HTTPException(
+            status_code=404, detail=f"City {city_code} not found or AQI unavailable"
+        )
     return {
         "city_code": cg.city_code,
         "city_name": cg.city_name,

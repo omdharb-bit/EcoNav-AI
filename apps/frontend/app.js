@@ -154,6 +154,16 @@ async function geocodeCity(name) {
     return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
 }
 
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+}
+
 btnSubmit.addEventListener('click', async () => {
     const startStr = document.getElementById('start-node').value.trim();
     const endStr = document.getElementById('end-node').value.trim();
@@ -186,9 +196,13 @@ btnSubmit.addEventListener('click', async () => {
             const [startLat, startLng] = await geocodeCity(startStr);
             const [endLat, endLng] = await geocodeCity(endStr);
             
-            // Randomly generate some believable mock metrics for any city pair
-            const mockDist = Math.floor(Math.random() * 2000) + 100;
-            const mockPollution = mockDist * (3 + Math.random() * 5);
+            const straightDist = calculateDistance(startLat, startLng, endLat, endLng);
+            const mockDist = Math.floor(straightDist * 1.3); // Apply ~1.3x routing modifier to straight line
+            
+            // Seed a consistent mock pollution value based on the city names so it doesn't change on refresh
+            const seed = ((startStr.charCodeAt(0) || 0) + (endStr.charCodeAt(0) || 0)) % 100;
+            const pseudoAqi = 50 + seed; // 50-150 AQI range
+            const mockPollution = mockDist * pseudoAqi * 0.04;
             
             data = {
                 route: [startStr, endStr],
@@ -261,8 +275,12 @@ document.getElementById('submit-traffic').addEventListener('click', async () => 
             const [startLat, startLng] = await geocodeCity(start);
             const [endLat, endLng] = await geocodeCity(end);
             
-            const mockDist = Math.floor(Math.random() * 2000) + 100;
-            const mockPollution = mockDist * (3 + Math.random() * 5);
+            const straightDist = calculateDistance(startLat, startLng, endLat, endLng);
+            const mockDist = Math.floor(straightDist * 1.3);
+            
+            const seed = ((start.charCodeAt(0) || 0) + (end.charCodeAt(0) || 0)) % 100;
+            const pseudoAqi = 50 + seed;
+            const mockPollution = mockDist * pseudoAqi * 0.04 * multiplier;
             data = {
                 route: [start, end],
                 custom_coords: [[startLat, startLng], [endLat, endLng]],
@@ -491,57 +509,121 @@ async function loadAqiData() {
 // --- Tasks Viewer Logic ---
 window.tasksLoaded = false;
 
+let simChartInstance = null;
+
 async function loadTasksData() {
-    const container = document.getElementById('tasks-container');
-    const loader = document.getElementById('tasks-loading');
-    
+    const taskSelect = document.getElementById('sim-task-select');
     try {
         const res = await fetch('/tasks');
-        if (!res.ok) throw new Error('Tasks API failed');
         const data = await res.json();
-        
-        container.innerHTML = '';
         const tasks = data.tasks || [];
-
-        tasks.forEach(t => {
-            const passStyle = "color: var(--accent-primary); font-weight: bold;";
-            const card = document.createElement('div');
-            card.className = 'glass route-form-card';
-            
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <h3 style="color:var(--text-primary); margin-bottom:0.5rem; font-size:1.2rem;">${t.name}</h3>
-                    <span style="background: rgba(148, 163, 184, 0.2); padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; text-transform: uppercase;">
-                        ${t.difficulty}
-                    </span>
-                </div>
-                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1rem;">${t.description}</p>
-                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span style="color: var(--text-secondary);">Start → Target</span>
-                        <span style="color: #fff; font-weight: 600;">${t.start} → ${t.destination}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
-                        <span style="color: var(--text-secondary);">Max Steps Budget</span>
-                        <span style="color: #fff; font-weight: 600;">${t.max_steps} moves</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="color: var(--text-secondary);">Passing Score Required</span>
-                        <span style="${passStyle}">${t.passing_score.toFixed(2)}</span>
-                    </div>
-                </div>
-            `;
-            container.appendChild(card);
-        });
+        
+        taskSelect.innerHTML = tasks.map(t => 
+            `<option value="${t.id}">${t.name} (${t.difficulty})</option>`
+        ).join('');
         
         window.tasksLoaded = true;
     } catch (err) {
         console.error(err);
-        container.innerHTML = `<p style="color: #ef4444;">Failed to load Hackathon Tasks definitions.</p>`;
+        taskSelect.innerHTML = `<option>Failed to load tasks</option>`;
+    }
+}
+
+document.getElementById('btn-run-sim').addEventListener('click', async () => {
+    const task_id = document.getElementById('sim-task-select').value;
+    const loader = document.getElementById('sim-loading');
+    const logBox = document.getElementById('sim-event-log');
+    
+    loader.classList.remove('hidden');
+    logBox.innerHTML = '<span style="color: #10b981;">Starting simulation...</span>';
+    
+    try {
+        const res = await fetch('/api/v1/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_id: task_id })
+        });
+        
+        if (!res.ok) throw new Error('Simulation failed');
+        const data = await res.json();
+        
+        // Populate logs
+        let logHtml = '';
+        const labels = [];
+        const creditsData = [];
+        const aqiData = [];
+        
+        data.timeline.forEach(step => {
+            logHtml += `<div style="padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.05);"><span style="color:#a855f7;">[Step ${step.step}]</span> Arrived: <strong>${step.city}</strong> <span style="color:#0ea5e9;">(AQI: ${step.aqi})</span> | Credits: <span style="color:#10b981;">${step.credits}</span></div>`;
+            labels.push(`Step ${step.step}`);
+            creditsData.push(step.credits);
+            aqiData.push(step.aqi);
+        });
+        
+        logHtml += `<div style="color: var(--accent-primary); margin-top: 1rem; font-size: 1rem;">🏁 Final Grade: ${data.grade_report.grade} (Score: ${data.grade_report.score.toFixed(3)})</div>`;
+        logBox.innerHTML = logHtml;
+        
+        // Draw Chart
+        const ctx = document.getElementById('simChart').getContext('2d');
+        if (simChartInstance) simChartInstance.destroy();
+        
+        Chart.defaults.color = '#a1a1aa';
+        simChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Exposure Credits',
+                        data: creditsData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Local AQI',
+                        data: aqiData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        title: { display: true, text: 'Credits Remaining' }
+                    },
+                    y1: {
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'AQI' }
+                    },
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#fff' } }
+                }
+            }
+        });
+        
+    } catch (err) {
+        logBox.innerHTML = `<span style="color:#ef4444;">Error: ${err.message}</span>`;
     } finally {
         loader.classList.add('hidden');
     }
-}
+});
 
 // ============================================================
 // ROUTE NETWORK — canvas-based interactive graph

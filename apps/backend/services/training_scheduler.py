@@ -35,10 +35,7 @@ class TrainingScheduler:
                 next_run = datetime.datetime.now() + datetime.timedelta(
                     seconds=self.interval_seconds
                 )
-                print(
-                    f"Automated training {status}. "
-                    f"Next run at {next_run:%Y-%m-%d %H:%M:%S}."
-                )
+                print(f"Automated training {status}. Next run at {next_run:%Y-%m-%d %H:%M:%S}.")
             except Exception as exc:  # noqa: BLE001
                 print(f"Error during automated training: {exc}")
 

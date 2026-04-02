@@ -12,6 +12,6 @@ class RLAgent:
     def choose_action(self, state: str, actions: list[str]) -> str:
         if not actions:
             raise ValueError("No actions available")
-        if random.random() < self.epsilon:
-            return random.choice(actions)
+        if random.random() < self.epsilon:  # nosec
+            return random.choice(actions)  # nosec
         return max(actions, key=lambda action: self.q[state][action])

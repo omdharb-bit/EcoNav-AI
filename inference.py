@@ -17,7 +17,7 @@ from openai import OpenAI
 # Environment config (Checklist Compliance)
 # ---------------------------------------------------------------------------
 
-ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
+ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -27,10 +27,7 @@ LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 
 # ---------------------------------------------------------------------------
-# OpenAI Client
-# ---------------------------------------------------------------------------
-
-client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+# OpenAI client is initialized inside functions to handle missing tokens gracefully.
 
 
 # ---------------------------------------------------------------------------
@@ -53,9 +50,20 @@ def env_grade() -> dict:
     return resp.json()
 
 def env_tasks() -> list[dict]:
-    resp = requests.get(f"{ENV_URL}/tasks", timeout=10)
-    resp.raise_for_status()
-    return resp.json()["tasks"]
+    """Fetch tasks with retry logic to wait for environment startup."""
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            resp = requests.get(f"{ENV_URL}/tasks", timeout=10)
+            resp.raise_for_status()
+            return resp.json()["tasks"]
+        except Exception as e:
+            if i == max_retries - 1:
+                raise # Re-raise on last try
+            print(f"Waiting for environment... (attempt {i+1}/{max_retries})")
+            import time
+            time.sleep(5)
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -94,10 +102,11 @@ Rules:
 Reply with ONLY the city code (e.g., "E") — nothing else."""
 
     try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=5,
+            max_tokens=10,
             temperature=0.0, # Deterministic for evaluation
         )
         action = response.choices[0].message.content.strip().upper()
@@ -112,8 +121,10 @@ Reply with ONLY the city code (e.g., "E") — nothing else."""
         unvisited = [v for v in valid if v not in visited]
         return unvisited[0] if unvisited else valid[0]
     except Exception as e:
-        # Final fallback
-        return observation["neighbors"][0]["city"]
+        # Final fallback - prioritize first neighbor's city
+        if neighbors:
+            return neighbors[0]["city"]
+        return "F" # Hard fallback if everything fails
 
 
 # ---------------------------------------------------------------------------
@@ -128,12 +139,11 @@ def run_evaluation():
         return
 
     for task in tasks:
-        task_id = task["id"]
-        
-        # [START] Marker
-        print(f"[START] task_id={task_id}")
-        
         try:
+            task_id = task["id"]
+            # [START] Marker
+            print(f"[START] task_id={task_id}")
+            
             obs = env_reset(task_id)
             done = False
             step_count = 0
@@ -162,7 +172,7 @@ def run_evaluation():
             print(f"[END] score={grade['score']:.4f} grade={grade['grade_letter']} reached={grade['reached_destination']}")
             
         except Exception as e:
-            print(f"Error during task {task_id}: {e}")
+            print(f"Error during task: {e}")
             print(f"[END] score=0.0000 grade=F reached=False")
 
 

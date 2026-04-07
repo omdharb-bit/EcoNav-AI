@@ -173,7 +173,7 @@ def run_evaluation():
             
         except Exception as e:
             print(f"Error during task: {e}")
-            print(f"[END] score=0.0000 grade=F reached=False")
+            print(f"[END] score=0.0001 grade=F reached=False")
 
 
 if __name__ == "__main__":

@@ -16,12 +16,18 @@ router = APIRouter(tags=["Route Network"])
 
 # City display metadata (coords relative to an 800×500 canvas)
 CITY_META: dict[str, dict] = {
-    "A": {"name": "Delhi", "x": 80, "y": 200},
-    "B": {"name": "Jaipur", "x": 250, "y": 120},
-    "C": {"name": "Agra", "x": 250, "y": 290},
-    "D": {"name": "Varanasi", "x": 450, "y": 200},
-    "E": {"name": "Lucknow", "x": 420, "y": 330},
-    "F": {"name": "Kolkata", "x": 680, "y": 200},
+    "A": {"name": "Delhi", "x": 80, "y": 80},
+    "B": {"name": "Jaipur", "x": 180, "y": 140},
+    "C": {"name": "Agra", "x": 220, "y": 100},
+    "D": {"name": "Varanasi", "x": 420, "y": 150},
+    "E": {"name": "Lucknow", "x": 380, "y": 100},
+    "F": {"name": "Kolkata", "x": 700, "y": 200},
+    "AMD": {"name": "Ahmedabad", "x": 100, "y": 220},
+    "MUM": {"name": "Mumbai", "x": 80, "y": 320},
+    "PNE": {"name": "Pune", "x": 120, "y": 340},
+    "HYD": {"name": "Hyderabad", "x": 280, "y": 360},
+    "BLR": {"name": "Bengaluru", "x": 220, "y": 450},
+    "CHN": {"name": "Chennai", "x": 320, "y": 460},
 }
 
 

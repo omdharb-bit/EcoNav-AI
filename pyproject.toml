@@ -2,7 +2,22 @@
 name = "econav-ai"
 version = "0.1.0"
 description = "EcoNav AI - health-aware routing for lower pollution exposure"
+authors = [
+    { name = "EcoNav AI Team" }
+]
 requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "requests>=2.32",
+    "pydantic>=2.7",
+    "numpy>=1.26",
+    "openai>=1.0.0",
+    "openenv-core>=0.2.0",
+]
+
+[project.scripts]
+server = "server.app:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

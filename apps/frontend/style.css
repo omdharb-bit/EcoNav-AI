@@ -44,12 +44,12 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Glassmorphism utility */
 .glass {
-  background: var(--surface);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .glass-heavy {
@@ -106,8 +106,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .sidebar {
     width: 280px;
-    background: rgba(15, 23, 42, 0.95);
-    border-right: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(10, 18, 35, 0.97) 0%, rgba(6, 12, 22, 0.99) 100%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border-right: 1px solid rgba(16, 185, 129, 0.12);
+    box-shadow: 4px 0 40px rgba(0, 0, 0, 0.4), inset -1px 0 0 rgba(255,255,255,0.04);
     display: flex;
     flex-direction: column;
     padding: 1.5rem;
@@ -115,6 +118,19 @@ h1, h2, h3, h4, h5, h6 {
     top: 0;
     height: 100vh;
     z-index: 100;
+    overflow: hidden;
+}
+
+.sidebar::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    left: -60px;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
 }
 
 .main-content {
@@ -164,17 +180,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .border-box {
-    border: 1px solid var(--border);
-    background: rgba(0,0,0,0.2);
-    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(0,0,0,0.3) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 14px;
     padding: 1rem;
     margin-bottom: 2rem;
     transition: var(--transition);
 }
 
 .border-box:hover {
-    background: rgba(0,0,0,0.3);
-    border-color: rgba(255,255,255,0.15);
+    background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(0,0,0,0.35) 100%);
+    border-color: rgba(16, 185, 129, 0.2);
 }
 
 .sidebar-nav {
@@ -189,37 +206,40 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-secondary);
     border: none;
     font-family: 'Inter', sans-serif;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
-    padding: 0.85rem 1rem;
-    border-radius: var(--radius-sm);
-    transition: var(--transition);
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    transition: all 0.25s ease;
     position: relative;
     overflow: hidden;
+    letter-spacing: 0.01em;
 }
 
 .nav-btn::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(90deg, rgba(16,185,129,0.1), transparent);
+    background: linear-gradient(90deg, rgba(16,185,129,0.15), transparent);
     opacity: 0;
-    transition: var(--transition);
+    transition: opacity 0.25s ease;
+    border-radius: inherit;
 }
 
 .nav-btn:hover {
-    color: var(--text-primary);
-    background: var(--surface-hover);
-    transform: translateX(4px);
+    color: #e2e8f0;
+    background: rgba(255,255,255,0.06);
+    transform: translateX(3px);
 }
 
 .nav-btn.active {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--accent-primary);
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.06));
+    color: #34d399;
     font-weight: 600;
-    border-left: 3px solid var(--accent-primary);
-    padding-left: 0.75rem;
+    border-left: 2px solid #10b981;
+    padding-left: 0.85rem;
+    box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.05);
 }
 
 .nav-btn.active::before {
@@ -228,16 +248,105 @@ h1, h2, h3, h4, h5, h6 {
 
 .credit-box {
     margin-top: auto;
-    padding: 1.25rem 1rem;
-    border-radius: 12px;
-    text-align: center;
+    padding: 1.25rem 1.1rem;
+    border-radius: 16px;
+    text-align: left;
     transition: var(--transition);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(0,0,0,0.4) 100%);
+    border: 1px solid rgba(16,185,129,0.2);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    position: relative;
+    overflow: hidden;
+}
+
+.credit-box::before {
+    content: '';
+    position: absolute;
+    bottom: -30px;
+    right: -30px;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+    border-radius: 50%;
 }
 
 .credit-box:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    border-color: rgba(16, 185, 129, 0.35);
+    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+/* Custom tooltip for info icon */
+.credit-info-btn {
+    cursor: help;
+    font-size: 10px;
+    font-weight: 700;
+    font-style: italic;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 17px;
+    height: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.credit-info-btn:hover {
+    background: rgba(16,185,129,0.2);
+    border-color: rgba(16,185,129,0.5);
+    color: #34d399;
+}
+
+.credit-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 0;
+    right: 0;
+    background: rgba(10,20,40,0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.6;
+    z-index: 200;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+
+.credit-tooltip strong {
+    color: #34d399;
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.credit-info-btn:hover + .credit-tooltip,
+.credit-box:hover .credit-tooltip,
+.credit-tooltip.visible {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+.credit-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 1.5rem;
+    border: 6px solid transparent;
+    border-top-color: rgba(16,185,129,0.25);
 }
 
 /* Animations */
@@ -657,4 +766,243 @@ input:focus, select:focus {
 @keyframes rotation {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* ===== Solid Card (fallback for non-glass cards) ===== */
+.solid-card {
+    background: linear-gradient(145deg, rgba(20, 30, 50, 0.95) 0%, rgba(10, 15, 28, 0.98) 100%);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: var(--transition);
+}
+
+.solid-card:hover {
+    border-color: rgba(16, 185, 129, 0.15);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(16,185,129,0.08);
+}
+
+/* Edge label text on canvas */
+.network-edge-label {
+    font-size: 11px;
+    fill: rgba(148, 163, 184, 0.7);
+}
+
+/* =========================================================
+   PREMIUM SIDEBAR DESIGN
+   ========================================================= */
+
+.premium-sidebar {
+    background: #0f172a;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 100;
+}
+
+.premium-sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 300px;
+    background: radial-gradient(circle at top left, rgba(16, 185, 129, 0.1), transparent 70%);
+    pointer-events: none;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    z-index: 2;
+}
+
+.sidebar-logo-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.sidebar-logo-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+}
+
+.sidebar-logo-sub {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 2px;
+}
+
+.sidebar-status {
+    display: flex;
+    align-items: center;
+    margin-top: -1rem;
+    padding-left: 0.5rem;
+}
+
+.status-pill {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.premium-stats {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin-bottom: 0;
+}
+
+.stats-header {
+    font-size: 10px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: #cbd5e1;
+}
+
+.stat-row:last-child {
+    margin-bottom: 0;
+}
+
+.stat-val {
+    font-weight: 700;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+}
+
+.stat-highlight {
+    font-weight: 600;
+    color: #10b981;
+}
+
+.premium-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.nav-section-label {
+    font-size: 10px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+    font-weight: 700;
+}
+
+.nav-btn.active {
+    background: rgba(255, 255, 255, 0.05);
+    border-left: none;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.nav-btn-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+}
+
+.nav-btn:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+    transform: none;
+}
+
+.premium-credit-box {
+    margin-top: auto;
+    background: linear-gradient(180deg, rgba(20, 20, 20, 0.5) 0%, rgba(10, 10, 10, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 10px 20px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: visible;
+}
+
+.premium-credit-box::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0; top: 0;
+    pointer-events: none;
+    border-radius: 20px;
+    background: radial-gradient(circle at bottom right, rgba(249, 115, 22, 0.1), transparent 60%);
+}
+
+.credit-box-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.credit-val-container {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #f97316;
+    margin-bottom: 1.5rem;
+    text-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.credit-reset-label {
+    font-size: 11px;
+    color: #64748b;
+    position: relative;
+    z-index: 2;
 }

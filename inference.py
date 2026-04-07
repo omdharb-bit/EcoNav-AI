@@ -1,88 +1,77 @@
 """
-Inference Script Example
-================================
+Inference Script — Compliance Optimized
+=======================================
 
-MANDATORY
-- Before submitting, ensure the following variables are defined in your environment configuration:
-    API_BASE_URL   The API endpoint for the LLM.
-    MODEL_NAME     The model identifier to use for inference.
-    HF_TOKEN       Your Hugging Face / API key.
-
-- The inference script must be named 'inference.py' and placed in the root directory of the project
-- Participants must use OpenAI Client for all LLM calls using above variables
+MANDATORY Checklist:
+1. Environment variables: API_BASE_URL, MODEL_NAME, HF_TOKEN strictly defined.
+2. HF_TOKEN has NO default value (set via HF environment/secrets).
+3. LLM calls use the OpenAI Client globally or within functions using these variables.
+4. Stdout logs follow the required structured format ([START]/[STEP]/[END]) exactly.
 """
 
 import os
-
 import requests
+from openai import OpenAI
 
 # ---------------------------------------------------------------------------
-# Environment config
+# Environment config (Checklist Compliance)
 # ---------------------------------------------------------------------------
 
-ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
+ENV_URL = os.getenv("ENV_URL", "http://localhost:7860")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY", "")
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-MAX_STEPS = 15
+# Optional – if you use from_docker_image():
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
+
+
+# ---------------------------------------------------------------------------
+# OpenAI client is initialized inside functions to handle missing tokens gracefully.
 
 
 # ---------------------------------------------------------------------------
 # Environment interaction helpers
 # ---------------------------------------------------------------------------
 
-
 def env_reset(task_id: str = "easy_route") -> dict:
-    """Call /reset endpoint."""
     resp = requests.post(f"{ENV_URL}/reset", json={"task_id": task_id}, timeout=30)
     resp.raise_for_status()
     return resp.json()
 
-
 def env_step(city: str) -> dict:
-    """Call /step endpoint with an action."""
-    resp = requests.post(
-        f"{ENV_URL}/step",
-        json={"action": {"city": city}},
-        timeout=10,
-    )
+    resp = requests.post(f"{ENV_URL}/step", json={"action": {"city": city}}, timeout=10)
     resp.raise_for_status()
     return resp.json()
-
-
-def env_state() -> dict:
-    """Call /state endpoint."""
-    resp = requests.get(f"{ENV_URL}/state", timeout=10)
-    resp.raise_for_status()
-    return resp.json()
-
 
 def env_grade() -> dict:
-    """Call /grade endpoint."""
     resp = requests.get(f"{ENV_URL}/grade", timeout=10)
     resp.raise_for_status()
     return resp.json()
 
-
 def env_tasks() -> list[dict]:
-    """Get available tasks."""
-    resp = requests.get(f"{ENV_URL}/tasks", timeout=10)
-    resp.raise_for_status()
-    return resp.json()["tasks"]
+    """Fetch tasks with retry logic to wait for environment startup."""
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            resp = requests.get(f"{ENV_URL}/tasks", timeout=10)
+            resp.raise_for_status()
+            return resp.json()["tasks"]
+        except Exception as e:
+            if i == max_retries - 1:
+                raise # Re-raise on last try
+            print(f"Waiting for environment... (attempt {i+1}/{max_retries})")
+            import time
+            time.sleep(5)
+    return []
 
 
 # ---------------------------------------------------------------------------
-# LLM-based agent (uses OpenAI client)
+# LLM Agent
 # ---------------------------------------------------------------------------
-
 
 def get_llm_action(observation: dict) -> str:
     """Ask the LLM to choose the next city based on observation."""
-    from openai import OpenAI
-
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-
     neighbors = observation.get("neighbors", [])
     neighbor_text = "\n".join(
         f"  - {n['city']} ({n['city_name']}): AQI={n['aqi']}, Grade={n['grade']}, "
@@ -113,144 +102,81 @@ Rules:
 Reply with ONLY the city code (e.g., "E") — nothing else."""
 
     try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=10,
-            temperature=0.2,
+            temperature=0.0, # Deterministic for evaluation
         )
         action = response.choices[0].message.content.strip().upper()
-        # Validate it's a real neighbor
+        # Clean up in case model outputs more than one word
+        action = action.split()[0].replace('"', '').replace('.', '').replace(',', '')
+        
         valid = [n["city"] for n in neighbors]
         if action in valid:
             return action
-        # Try to extract a valid city code from the response
-        for v in valid:
-            if v in action:
-                return v
-        # Fallback to greedy
-        return greedy_action(observation)
+        # Fallback to first unvisited neighbor if any, then first neighbor
+        visited = set(observation.get("visited", []))
+        unvisited = [v for v in valid if v not in visited]
+        return unvisited[0] if unvisited else valid[0]
     except Exception as e:
-        print(f"LLM error: {e}, falling back to greedy")
-        return greedy_action(observation)
+        # Final fallback - prioritize first neighbor's city
+        if neighbors:
+            return neighbors[0]["city"]
+        return "F" # Hard fallback if everything fails
 
 
 # ---------------------------------------------------------------------------
-# Greedy baseline agent (no LLM needed)
+# Main Evaluation Loop (Structured Logging)
 # ---------------------------------------------------------------------------
 
+def run_evaluation():
+    try:
+        tasks = env_tasks()
+    except Exception as e:
+        print(f"Error fetching tasks: {e}")
+        return
 
-def greedy_action(observation: dict) -> str:
-    """Simple greedy agent: prefer neighbors closer to destination with better AQI."""
-    neighbors = observation.get("neighbors", [])
-    destination = observation["destination"]
-    visited = set(observation.get("visited", []))
-
-    if not neighbors:
-        raise ValueError("No neighbors available!")
-
-    # Priority: destination if available
-    for n in neighbors:
-        if n["city"] == destination:
-            return n["city"]
-
-    # Filter unvisited
-    unvisited = [n for n in neighbors if n["city"] not in visited]
-    candidates = unvisited if unvisited else neighbors
-
-    # Score: higher credit_delta is better, lower AQI is better
-    best = max(candidates, key=lambda n: n["credit_delta"] * 2 - n["aqi"] / 50)
-    return best["city"]
-
-
-# ---------------------------------------------------------------------------
-# Main inference loop
-# ---------------------------------------------------------------------------
-
-
-def run_episode(task_id: str = "easy_route", use_llm: bool = False) -> dict:
-    """Run a complete episode on the given task."""
-    print(f"\n{'=' * 60}")
-    print(f"Task: {task_id}")
-    print(f"Agent: {'LLM' if use_llm else 'Greedy Baseline'}")
-    print(f"{'=' * 60}")
-
-    obs = env_reset(task_id)
-    print(f"Start: {obs['current_city']} ({obs['current_city_name']})")
-    print(f"Goal:  {obs['destination']} ({obs['destination_name']})")
-    print(f"Credits: {obs['exposure_credits']}, Max steps: {obs['max_steps']}")
-
-    total_reward = 0.0
-
-    while not obs.get("done", False):
-        # Choose action
-        if use_llm:
-            action = get_llm_action(obs)
-        else:
-            action = greedy_action(obs)
-
-        print(f"\n  Step {obs['steps_taken'] + 1}: Moving to {action}...")
-
-        # Execute
-        result = env_step(action)
-        obs = result["observation"]
-        reward = result["reward"]
-        total_reward += reward
-        info = result["info"]
-
-        print(f"    → {obs['current_city']} ({obs['current_city_name']})")
-        print(f"    Grade: {info['segment_grade']}, AQI: {info['segment_avg_aqi']}")
-        print(
-            f"    Credits: {info['segment_credit_delta']:+d} → Balance: {obs['exposure_credits']}"
-        )
-        print(f"    Reward: {reward:.2f}")
-
-    # Grade
-    grade = env_grade()
-    print(f"\n{'─' * 60}")
-    print(f"RESULT: {grade['grade_letter']} (Score: {grade['score']:.4f})")
-    print(f"Route: {' → '.join(grade['route'])}")
-    print(f"Credits: {grade['exposure_credits_final']} | Exposure: {grade['total_exposure']}")
-    print(f"Feedback: {grade['feedback']}")
-    print(f"Total reward: {total_reward:.2f}")
-
-    return grade
-
-
-def main():
-    """Run baseline inference on all tasks."""
-    tasks = env_tasks()
-    print(f"Available tasks: {[t['id'] for t in tasks]}")
-
-    results = []
     for task in tasks:
-        use_llm = bool(API_KEY)  # Use LLM if API key is set
-        grade = run_episode(task["id"], use_llm=use_llm)
-        results.append(
-            {
-                "task": task["id"],
-                "difficulty": task["difficulty"],
-                "score": grade["score"],
-                "grade": grade["grade_letter"],
-                "reached": grade["reached_destination"],
-                "credits": grade["exposure_credits_final"],
-            }
-        )
-
-    print(f"\n{'=' * 60}")
-    print("SUMMARY")
-    print(f"{'=' * 60}")
-    for r in results:
-        status = "✅" if r["reached"] else "❌"
-        print(
-            f"  {status} {r['task']:25s} Score={r['score']:.4f}  Grade={r['grade']}  Credits={r['credits']}"
-        )
-
-    avg_score = sum(r["score"] for r in results) / len(results)
-    print(f"\n  Average score: {avg_score:.4f}")
-
-    return results
+        try:
+            task_id = task["id"]
+            # [START] Marker
+            print(f"[START] task_id={task_id}")
+            
+            obs = env_reset(task_id)
+            done = False
+            step_count = 0
+            
+            while not done:
+                # Agent chooses action
+                action = get_llm_action(obs)
+                
+                # Environment step
+                result = env_step(action)
+                obs = result["observation"]
+                reward = result["reward"]
+                done = result["done"]
+                
+                # [STEP] Marker
+                print(f"[STEP] step={step_count} action={action} reward={reward:.4f}")
+                step_count += 1
+                
+                if step_count > 20: # Safety break
+                    break
+            
+            # Ending task
+            grade = env_grade()
+            
+            # [END] Marker
+            print(f"[END] score={grade['score']:.4f} grade={grade['grade_letter']} reached={grade['reached_destination']}")
+            
+        except Exception as e:
+            print(f"Error during task: {e}")
+            print(f"[END] score=0.0001 grade=F reached=False")
 
 
 if __name__ == "__main__":
-    main()
+    if not HF_TOKEN:
+        print("Warning: HF_TOKEN not set. Remote LLM calls will fail.")
+    run_evaluation()

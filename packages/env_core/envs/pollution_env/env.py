@@ -276,10 +276,14 @@ class ExposureCreditEnv:
         else:
             step_score = 0.0
 
-        final_score = round(
-            0.4 * dest_score + 0.3 * credit_score + 0.2 * exposure_score + 0.1 * step_score,
-            4,
+        # Component scores aggregated to [0.0, 1.0]
+        final_score = (
+            0.4 * dest_score + 0.3 * credit_score + 0.2 * exposure_score + 0.1 * step_score
         )
+
+        # MANDATORY: Clamp to strictly between (0, 1) as required by evaluation platform.
+        # Exactly 0.0 or 1.0 will cause Phase 2 failure.
+        final_score = round(max(0.0001, min(0.9999, final_score)), 4)
 
         # Grade letter
         if final_score >= 0.9:

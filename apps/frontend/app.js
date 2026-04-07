@@ -39,6 +39,12 @@ const CITY_COORDS = {
     "D": [25.3176, 82.9739], // Varanasi
     "E": [26.8467, 80.9462], // Lucknow
     "F": [22.5726, 88.3639], // Kolkata
+    "MUM": [19.0760, 72.8777],
+    "BLR": [12.9716, 77.5946],
+    "CHN": [13.0827, 80.2707],
+    "HYD": [17.3850, 78.4867],
+    "PNE": [18.5204, 73.8567],
+    "AMD": [23.0225, 72.5714]
 };
 
 const CITY_NAMES = {
@@ -47,11 +53,29 @@ const CITY_NAMES = {
     "C": "Agra",
     "D": "Varanasi",
     "E": "Lucknow",
-    "F": "Kolkata"
+    "F": "Kolkata",
+    "MUM": "Mumbai",
+    "BLR": "Bengaluru",
+    "CHN": "Chennai",
+    "HYD": "Hyderabad",
+    "PNE": "Pune",
+    "AMD": "Ahmedabad"
 };
 
 // --- Global State ---
-let globalCredits = parseInt(localStorage.getItem('econav_credits')) || 1000;
+const CREDIT_RESET_AMOUNT = 1000;
+let lastResetDate = localStorage.getItem('econav_last_reset_date');
+let todayStr = new Date().toDateString();
+let globalCredits;
+
+if (lastResetDate !== todayStr) {
+    globalCredits = CREDIT_RESET_AMOUNT;
+    localStorage.setItem('econav_credits', globalCredits);
+    localStorage.setItem('econav_last_reset_date', todayStr);
+} else {
+    globalCredits = parseInt(localStorage.getItem('econav_credits'));
+    if (isNaN(globalCredits)) globalCredits = CREDIT_RESET_AMOUNT;
+}
 
 function updateGlobalCreditsUI() {
     const badge = document.getElementById('global-credit-badge');
@@ -79,11 +103,30 @@ function updateGlobalCreditsUI() {
 }
 updateGlobalCreditsUI();
 
-document.getElementById('btn-reset-day').addEventListener('click', () => {
-    globalCredits = 1000;
-    localStorage.setItem('econav_credits', globalCredits);
-    updateGlobalCreditsUI();
-});
+// --- Credit Info Tooltip Click Toggle ---
+(function() {
+    const btn = document.getElementById('credit-info-toggle');
+    const tooltip = document.querySelector('.credit-tooltip');
+    if (!btn || !tooltip) return;
+
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tooltip.classList.toggle('visible');
+        btn.style.color = tooltip.classList.contains('visible') ? '#34d399' : '';
+        btn.style.background = tooltip.classList.contains('visible') ? 'rgba(16,185,129,0.2)' : '';
+        btn.style.borderColor = tooltip.classList.contains('visible') ? 'rgba(16,185,129,0.5)' : '';
+    });
+
+    // Click outside to dismiss
+    document.addEventListener('click', (e) => {
+        if (!btn.contains(e.target)) {
+            tooltip.classList.remove('visible');
+            btn.style.color = '';
+            btn.style.background = '';
+            btn.style.borderColor = '';
+        }
+    });
+})();
 
 // --- Tab Switching ---
 function hideAll() {
@@ -336,10 +379,53 @@ document.getElementById('submit-traffic').addEventListener('click', async () => 
                     weight: 2,
                     opacity: 1,
                     fillOpacity: 1
-                }).bindTooltip(routeArr[i], {permanent: true, direction: "top"}).addTo(currentTrafficRouteLayer);
+                }).bindTooltip(CITY_NAMES[routeArr[i]] || routeArr[i], {permanent: true, direction: "top"}).addTo(currentTrafficRouteLayer);
             });
             setTimeout(() => mapTraffic.invalidateSize(), 50);
         }
+        
+        // Traffic Chart Rendering
+        if (data.exposure_credits && data.exposure_credits.segments && data.exposure_credits.segments.length > 0) {
+            document.getElementById('traffic-segment-chart-card').style.display = 'block';
+            const tCtx = document.getElementById('trafficSegmentChart').getContext('2d');
+            if (window.trafficSegmentChartInstance) window.trafficSegmentChartInstance.destroy();
+
+            const tLabels = data.exposure_credits.segments.map(s => `${CITY_NAMES[s.from] || s.from} → ${CITY_NAMES[s.to] || s.to}`);
+            const tAqi = data.exposure_credits.segments.map(s => s.avg_aqi);
+            const tBaseAqi = tAqi.map(a => Math.round(a / multiplier));
+
+            Chart.defaults.color = '#a1a1aa';
+            window.trafficSegmentChartInstance = new Chart(tCtx, {
+                type: 'bar',
+                data: {
+                    labels: tLabels,
+                    datasets: [
+                        {
+                            label: 'Traffic-Inflated AQI Risk',
+                            data: tAqi,
+                            backgroundColor: 'rgba(244, 63, 94, 0.8)'
+                        },
+                        {
+                            label: 'Base AQI (No Traffic)',
+                            data: tBaseAqi,
+                            backgroundColor: 'rgba(16, 185, 129, 0.4)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        } else {
+            const trfChart = document.getElementById('traffic-segment-chart-card');
+            if (trfChart) trfChart.style.display = 'none';
+        }
+        
     } catch (err) {
         errText.textContent = err.message;
         errText.classList.remove('hidden');
@@ -372,7 +458,7 @@ function renderRouteResults(data) {
     const routeArr = data.route || [];
     document.getElementById('res-path').textContent = routeArr.map(n => CITY_NAMES[n] || n).join(' → ');
     document.getElementById('res-dist').textContent = `Distance: ${Math.round(data.total_distance)} km`;
-    document.getElementById('res-exp').textContent = `Exposure: ${Math.round(data.total_pollution)}`;
+    document.getElementById('res-exp').textContent = Math.round(data.total_pollution);
 
     // Map Updates
     if (currentRouteLayer) map.removeLayer(currentRouteLayer);
@@ -404,7 +490,7 @@ function renderRouteResults(data) {
                 weight: 2,
                 opacity: 1,
                 fillOpacity: 1
-            }).bindTooltip(routeArr[i], {permanent: true, direction: "top"}).addTo(currentRouteLayer);
+            }).bindTooltip(CITY_NAMES[routeArr[i]] || routeArr[i], {permanent: true, direction: "top"}).addTo(currentRouteLayer);
         });
     }
 
@@ -439,6 +525,55 @@ function renderRouteResults(data) {
     routeResults.classList.remove('hidden');
     routeResults.classList.add('animate-in');
     
+    // Segments Chart rendering
+    if (credits.segments && credits.segments.length > 0) {
+        document.getElementById('route-segment-chart-card').style.display = 'block';
+        const ctxRoute = document.getElementById('routeSegmentChart').getContext('2d');
+        if (window.routeSegmentChartInstance) window.routeSegmentChartInstance.destroy();
+
+        const rLabels = credits.segments.map(s => `${CITY_NAMES[s.from] || s.from} → ${CITY_NAMES[s.to] || s.to}`);
+        const rAqi = credits.segments.map(s => s.avg_aqi);
+        const rDist = credits.segments.map(s => s.distance || 0);
+
+        Chart.defaults.color = '#a1a1aa';
+        window.routeSegmentChartInstance = new Chart(ctxRoute, {
+            type: 'bar',
+            data: {
+                labels: rLabels,
+                datasets: [
+                    {
+                        label: 'Avg AQI Risk',
+                        data: rAqi,
+                        backgroundColor: 'rgba(244, 63, 94, 0.7)',
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'line',
+                        label: 'Distance (km)',
+                        data: rDist,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                    y1: { position: 'right', grid: { drawOnChartArea: false }, beginAtZero: true },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    } else {
+        const segChart = document.getElementById('route-segment-chart-card');
+        if (segChart) segChart.style.display = 'none';
+    }
+
     // Fix Leaflet grey map loading issue
     setTimeout(() => {
         map.invalidateSize();
@@ -449,10 +584,12 @@ function renderRouteResults(data) {
 
 // --- AQI Matrix Logic ---
 window.aqiLoaded = false;
+let aqiChartInstance = null;
 
 async function loadAqiData() {
     const container = document.getElementById('aqi-container');
     const loader = document.getElementById('aqi-loading');
+    const chartCard = document.getElementById('aqi-chart-card');
     
     try {
         const res = await fetch('/api/v1/aqi?region=metro');
@@ -464,6 +601,10 @@ async function loadAqiData() {
         
         cities.sort((a,b) => b.aqi - a.aqi);
 
+        const chartLabels = [];
+        const chartData = [];
+        const chartColors = [];
+
         cities.forEach(c => {
             let color = '#4CAF50';
             if (c.aqi > 50) color = '#FFC107';
@@ -471,6 +612,10 @@ async function loadAqiData() {
             if (c.aqi > 150) color = '#F44336';
             if (c.aqi > 200) color = '#9C27B0';
             if (c.aqi > 300) color = '#7E0023';
+
+            chartLabels.push(c.city_name);
+            chartData.push(c.aqi);
+            chartColors.push(color);
 
             const card = document.createElement('div');
             card.className = 'glass city-card';
@@ -496,6 +641,36 @@ async function loadAqiData() {
             `;
             container.appendChild(card);
         });
+        
+        if (cities.length > 0 && chartCard) {
+            chartCard.style.display = 'block';
+            const ctxAqi = document.getElementById('aqiChart').getContext('2d');
+            if (aqiChartInstance) aqiChartInstance.destroy();
+            
+            Chart.defaults.color = '#a1a1aa';
+            aqiChartInstance = new Chart(ctxAqi, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Real-Time AQI',
+                        data: chartData,
+                        backgroundColor: chartColors,
+                        borderWidth: 0,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
         
         window.aqiLoaded = true;
     } catch (err) {
@@ -639,7 +814,7 @@ const CANVAS_PAD_Y = 40;
 
 // Scale raw node positions to the actual canvas pixel size
 function scaleNodes(nodes, canvas) {
-    const rawW = 760, rawH = 400;       // design-time canvas size
+    const rawW = 760, rawH = 530;       // design-time canvas size (extended for southern cities)
     const scaleX = (canvas.width  - CANVAS_PAD_X * 2) / rawW;
     const scaleY = (canvas.height - CANVAS_PAD_Y * 2) / rawH;
     return nodes.map(n => ({
@@ -655,37 +830,53 @@ function nodeById(scaled, id) {
 
 // Draw a filled, glow-ringed city node
 function drawNode(ctx, n) {
-    // Glow halo
-    const grad = ctx.createRadialGradient(n.px, n.py, NODE_RADIUS * 0.6, n.px, n.py, NODE_RADIUS * 1.8);
-    grad.addColorStop(0, n.color + '55');
+    // Elegant Glow halo
+    const grad = ctx.createRadialGradient(n.px, n.py, NODE_RADIUS * 0.2, n.px, n.py, NODE_RADIUS * 2.5);
+    grad.addColorStop(0, n.color + '88');
+    grad.addColorStop(0.5, n.color + '22');
     grad.addColorStop(1, 'transparent');
     ctx.beginPath();
-    ctx.arc(n.px, n.py, NODE_RADIUS * 1.8, 0, Math.PI * 2);
+    ctx.arc(n.px, n.py, NODE_RADIUS * 2.5, 0, Math.PI * 2);
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Node ring
+    // Node body
     ctx.beginPath();
     ctx.arc(n.px, n.py, NODE_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = '#0f172a';
+    const bodyGrad = ctx.createLinearGradient(n.px - NODE_RADIUS, n.py - NODE_RADIUS, n.px + NODE_RADIUS, n.py + NODE_RADIUS);
+    bodyGrad.addColorStop(0, '#1e293b');
+    bodyGrad.addColorStop(1, '#080d1a');
+    ctx.fillStyle = bodyGrad;
     ctx.fill();
+
+    // Node outline and inner ring
     ctx.strokeStyle = n.color;
-    ctx.lineWidth = 2.5;
-    ctx.shadowColor = n.color;
-    ctx.shadowBlur = 12;
+    ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.shadowBlur = 0;
+    
+    ctx.beginPath();
+    ctx.arc(n.px, n.py, NODE_RADIUS - 4, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-    // City label (name above, code below)
-    ctx.fillStyle = '#f1f5f9';
-    ctx.font = 'bold 12px Inter, sans-serif';
+    // City label (name centered inside)
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(n.name, n.px, n.py + 4);
+    ctx.textBaseline = 'middle';
+    if (n.name.length > 8) {
+       ctx.font = 'bold 9px Inter, sans-serif';
+    } else {
+       ctx.font = 'bold 11px Inter, sans-serif';
+    }
+    ctx.fillText(n.name, n.px, n.py);
 
-    // AQI badge
+    // AQI badge underneath
     ctx.fillStyle = n.color;
-    ctx.font = '10px Inter, sans-serif';
-    ctx.fillText(`AQI ${n.aqi}`, n.px, n.py + NODE_RADIUS + 14);
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`AQI ${n.aqi}`, n.px, n.py + NODE_RADIUS + 10);
 }
 
 // Draw one directed edge (source → target) with animated dash
@@ -705,19 +896,25 @@ function drawEdge(ctx, src, tgt, edge, dashOffset) {
     const mx = (startX + endX) / 2 + uy * 18;
     const my = (startY + endY) / 2 - ux * 18;
 
+    // Glowing undertone
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.quadraticCurveTo(mx, my, endX, endY);
+    ctx.strokeStyle = edge.color + '44'; // Hex + alpha
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // Actual moving trail
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.quadraticCurveTo(mx, my, endX, endY);
     ctx.strokeStyle = edge.color;
     ctx.lineWidth = 2;
-    ctx.setLineDash([8, 6]);
+    ctx.setLineDash([8, 12]);
     ctx.lineDashOffset = -dashOffset;
-    ctx.shadowColor = edge.color;
-    ctx.shadowBlur = 6;
     ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.shadowBlur = 0;
-
+    ctx.setLineDash([]); // Reset
+    
     // Arrowhead at end
     const angle = Math.atan2(endY - my, endX - mx);
     const aLen = 9;
@@ -847,7 +1044,7 @@ async function loadNetworkGraph(force = false) {
         // Resize canvas to actual display width maintaining aspect ratio
         const displayW = canvas.clientWidth || 900;
         canvas.width  = displayW > 0 ? displayW : 900;
-        canvas.height = Math.round(canvas.width * (480 / 900));
+        canvas.height = Math.round(canvas.width * (630 / 900)); // taller to fit south India cities
 
         populateEdgeTable(networkData.edges, networkData.nodes);
         setupNetworkHover(canvas, networkData.nodes);

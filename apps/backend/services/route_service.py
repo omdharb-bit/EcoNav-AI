@@ -30,6 +30,16 @@ EDGE_DISTANCES: dict[tuple[str, str], float] = {
     ("D", "E"): 300,  # Varanasi → Lucknow
     ("D", "F"): 680,  # Varanasi → Kolkata
     ("E", "F"): 990,  # Lucknow → Kolkata
+    ("B", "AMD"): 680, # Jaipur -> Ahmedabad
+    ("A", "AMD"): 940, # Delhi -> Ahmedabad
+    ("AMD", "MUM"): 530, # Ahmedabad -> Mumbai
+    ("MUM", "PNE"): 150, # Mumbai -> Pune
+    ("PNE", "BLR"): 840, # Pune -> Bengaluru
+    ("MUM", "HYD"): 710, # Mumbai -> Hyderabad
+    ("HYD", "BLR"): 570, # Hyderabad -> Bengaluru
+    ("BLR", "CHN"): 350, # Bengaluru -> Chennai
+    ("HYD", "CHN"): 630, # Hyderabad -> Chennai
+    ("F", "CHN"): 1670, # Kolkata -> Chennai
 }
 
 

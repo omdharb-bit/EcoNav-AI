@@ -54,19 +54,6 @@ app.include_router(simulate_router, prefix="/api/v1")
 app.include_router(openenv_router)
 
 
-app.mount("/static", StaticFiles(directory="apps/frontend"), name="static")
-
-
-@app.get("/")
-def home():
-    return FileResponse("apps/frontend/index.html")
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok", "service": settings.APP_NAME, "version": settings.VERSION}
-
-
 @app.get("/route")
 def get_best_route():
     routes = [
@@ -76,3 +63,13 @@ def get_best_route():
     ]
     best, all_routes = choose_best_route(routes)
     return {"best_route": best, "all_routes": all_routes}
+
+
+# Mount static files with a /static prefix to avoid route collisions
+frontend_path = os.path.abspath("apps/frontend")
+app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
+
+@app.get("/")
+def home():
+    return FileResponse(os.path.join(frontend_path, "index.html"))

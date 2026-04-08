@@ -19,7 +19,7 @@ def eco_score(distance, fuel):
     return round(score, 2)
 
 
-def choose_best_route(routes):
+def choose_best_route(routes):0
     best = None
     best_score = -999
 

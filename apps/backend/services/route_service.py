@@ -192,6 +192,7 @@ def get_route_service(start: str, end: str, traffic_multiplier: float = 1.0, rou
         "total_distance": eco_distance,
         "total_pollution": eco_exposure,
         "shortest_route": shortest_path,
+        "shortest_distance": compute_distance(g, shortest_path),
         "shortest_exposure": shortest_exposure,
         "improvement": improvement_str,
         "aqi_data": aqi_info,

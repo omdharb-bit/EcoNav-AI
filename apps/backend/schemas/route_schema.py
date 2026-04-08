@@ -15,6 +15,7 @@ class RouteResponse(BaseModel):
     total_distance: float
     total_pollution: float
     shortest_route: List[str]
+    shortest_distance: float
     shortest_exposure: float
     improvement: str
     aqi_data: Optional[Dict[str, Any]] = None

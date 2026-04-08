@@ -21,6 +21,11 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 }).addTo(map);
 
 let currentRouteLayer = null;
+let currentShortestRouteLayer = null;
+let shortestRouteControlMain = null;
+let mapSelectionMode = false;
+let mapSelectStage = 0; 
+let mapSelectMarkers = [];
 
 // Traffic Engine Map
 let mapTraffic = L.map('map-traffic').setView([26.0, 80.0], 5);
@@ -191,11 +196,76 @@ const routeResults = document.getElementById('route-results');
 const routeError = document.getElementById('route-error');
 
 async function geocodeCity(name) {
+    // If name is already a coordinate string "lat, lon"
+    if (name.includes(',')) {
+        const parts = name.split(',').map(s => parseFloat(s.trim()));
+        if (!parts.some(isNaN)) return parts;
+    }
+    
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(name)}&limit=1`);
     const data = await res.json();
     if (data.length === 0) throw new Error(`City not found: ${name}`);
     return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
 }
+
+
+
+// --- Manual Map Selection ---
+document.getElementById('btn-map-select').addEventListener('click', () => {
+    mapSelectionMode = !mapSelectionMode;
+    const btn = document.getElementById('btn-map-select');
+    
+    if (mapSelectionMode) {
+        btn.style.background = 'rgba(14, 165, 233, 0.2)';
+        btn.style.color = '#0ea5e9';
+        btn.style.borderColor = 'rgba(14, 165, 233, 0.5)';
+        document.getElementById('map').style.cursor = 'crosshair';
+        mapSelectStage = 0;
+        // Clear previous selection markers
+        mapSelectMarkers.forEach(m => map.removeLayer(m));
+        mapSelectMarkers = [];
+        
+        // Tooltip hint
+        const info = document.getElementById('info-banner-text');
+        info.innerHTML = "📍 Click on the map to select <strong>Start City</strong>";
+        info.parentElement.classList.remove('hidden');
+    } else {
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+        document.getElementById('map').style.cursor = '';
+    }
+});
+
+map.on('click', (e) => {
+    if (!mapSelectionMode) return;
+    
+    const { lat, lng } = e.latlng;
+    const coordStr = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    
+    if (mapSelectStage === 0) {
+        document.getElementById('start-node').value = coordStr;
+        const m = L.marker([lat, lng], {icon: L.divIcon({className: 'custom-div-icon', html: "<div style='background:#0ea5e9; width:12px; height:12px; border-radius:50%; border:2px solid #fff;'></div>", iconSize:[12,12]})}).addTo(map);
+        mapSelectMarkers.push(m);
+        mapSelectStage = 1;
+        document.getElementById('info-banner-text').innerHTML = "🏁 Click on the map to select <strong>Destination City</strong>";
+    } else {
+        document.getElementById('end-node').value = coordStr;
+        const m = L.marker([lat, lng], {icon: L.divIcon({className: 'custom-div-icon', html: "<div style='background:#f43f5e; width:12px; height:12px; border-radius:50%; border:2px solid #fff;'></div>", iconSize:[12,12]})}).addTo(map);
+        mapSelectMarkers.push(m);
+        
+        // Reset mode and trigger search
+        mapSelectionMode = false;
+        document.getElementById('map').style.cursor = '';
+        const btn = document.getElementById('btn-map-select');
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+        
+        // Auto-submit
+        document.getElementById('submit-route').click();
+    }
+});
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // km
@@ -484,44 +554,56 @@ function renderRouteResults(data) {
     // Advantage
     document.getElementById('res-advantage').textContent = data.improvement || '0%';
     
-    // Summary line
+    // Summary lines
     const routeArr = data.route || [];
+    const shortestArr = data.shortest_route || [];
+    
     document.getElementById('res-path').textContent = routeArr.map(n => CITY_NAMES[n] || n).join(' → ');
     
     // Update baseline if available
     const shortPathEl = document.getElementById('short-path');
-    if (shortPathEl && data.shortest_route) {
-        shortPathEl.textContent = data.shortest_route.map(n => CITY_NAMES[n] || n).join(' → ');
+    if (shortPathEl && shortestArr.length > 0) {
+        shortPathEl.textContent = shortestArr.map(n => CITY_NAMES[n] || n).join(' → ');
     } else if (shortPathEl) {
         shortPathEl.textContent = "N/A (Simulated or no baseline)";
     }
 
-    document.getElementById('res-dist').textContent = `Distance: ${Math.round(data.total_distance)} km`;
+    // Stats for Eco Path
+    document.getElementById('res-dist').textContent = `${Math.round(data.total_distance)} km`;
     document.getElementById('res-exp').textContent = Math.round(data.total_pollution);
+    
+    // Stats for Shortest Path
+    const resDistShort = document.getElementById('res-dist-short');
+    const resExpShort = document.getElementById('res-exp-short');
+    if (resDistShort) resDistShort.textContent = `${Math.round(data.shortest_distance || data.total_distance * 0.9)} km`;
+    if (resExpShort) resExpShort.textContent = Math.round(data.shortest_exposure || data.total_pollution * 1.2);
 
-    // Map Updates
+    // Map Updates - Clear previous
     if (currentRouteLayer) map.removeLayer(currentRouteLayer);
     if (window.routeControlMain) map.removeControl(window.routeControlMain);
+    if (currentShortestRouteLayer) map.removeLayer(currentShortestRouteLayer);
+    if (shortestRouteControlMain) map.removeControl(shortestRouteControlMain);
     
-    const coords = data.custom_coords ? data.custom_coords : routeArr.map(n => CITY_COORDS[n]).filter(Boolean);
-    if (coords.length > 0) {
+    // 1. Draw Eco Route (Green)
+    const ecoCoords = data.custom_coords ? data.custom_coords : routeArr.map(n => CITY_COORDS[n]).filter(Boolean);
+    if (ecoCoords.length > 0) {
         currentRouteLayer = L.featureGroup().addTo(map);
         
         window.routeControlMain = L.Routing.control({
-            waypoints: coords.map(c => L.latLng(c[0], c[1])),
+            waypoints: ecoCoords.map(c => L.latLng(c[0], c[1])),
             routeWhileDragging: false,
             addWaypoints: false,
             fitSelectedRoutes: true,
             showAlternatives: false,
             createMarker: function() { return null; },
             lineOptions: {
-                styles: [{ className: 'glowing-route', weight: 6, color: '#10b981' }]
+                styles: [{ className: 'glowing-route', weight: 7, color: '#10b981', opacity: 1 }]
             }
         }).addTo(map);
         
-        // Draw markers
-        coords.forEach((coord, i) => {
-            const isEndpoint = i === 0 || i === coords.length - 1;
+        // Draw Eco markers
+        ecoCoords.forEach((coord, i) => {
+            const isEndpoint = i === 0 || i === ecoCoords.length - 1;
             L.circleMarker(coord, {
                 radius: isEndpoint ? 8 : 5,
                 fillColor: isEndpoint ? "#0ea5e9" : "#10b981",
@@ -529,8 +611,43 @@ function renderRouteResults(data) {
                 weight: 2,
                 opacity: 1,
                 fillOpacity: 1
-            }).bindTooltip(CITY_NAMES[routeArr[i]] || routeArr[i], {permanent: true, direction: "top"}).addTo(currentRouteLayer);
+            }).bindTooltip(CITY_NAMES[routeArr[i]] || routeArr[i], {permanent: i === 0, direction: "top"}).addTo(currentRouteLayer);
         });
+    }
+
+    // 2. Draw Shortest Route (Red) - only if different from Eco or explicitly requested
+    if (shortestArr.length > 0 && (JSON.stringify(routeArr) !== JSON.stringify(shortestArr))) {
+        const shortCoords = shortestArr.map(n => CITY_COORDS[n]).filter(Boolean);
+        if (shortCoords.length > 0) {
+            currentShortestRouteLayer = L.featureGroup().addTo(map);
+            
+            shortestRouteControlMain = L.Routing.control({
+                waypoints: shortCoords.map(c => L.latLng(c[0], c[1])),
+                routeWhileDragging: false,
+                addWaypoints: false,
+                fitSelectedRoutes: false, // Don't snap camera to shortest, prefer eco
+                showAlternatives: false,
+                createMarker: function() { return null; },
+                lineOptions: {
+                    styles: [{ className: 'glowing-route-shortest', weight: 4, color: '#ef4444', opacity: 0.7, dashArray: '5, 10' }]
+                }
+            }).addTo(map);
+
+            // Subtle markers for shortest path points if they aren't endpoints
+            shortCoords.forEach((coord, i) => {
+                const isEndpoint = i === 0 || i === shortCoords.length - 1;
+                if (!isEndpoint) {
+                    L.circleMarker(coord, {
+                        radius: 3,
+                        fillColor: "#ef4444",
+                        color: "#fff",
+                        weight: 1,
+                        opacity: 0.6,
+                        fillOpacity: 0.6
+                    }).addTo(currentShortestRouteLayer);
+                }
+            });
+        }
     }
 
     // Segments

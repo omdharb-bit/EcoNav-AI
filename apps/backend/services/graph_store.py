@@ -6,7 +6,6 @@ Provides thread-safe read/write with auto-initialization of default data.
 from __future__ import annotations
 
 import json
-import os
 import threading
 from pathlib import Path
 from typing import Any

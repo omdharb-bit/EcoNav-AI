@@ -7,13 +7,13 @@ weights when the AQI service is unreachable.
 
 from __future__ import annotations
 
+from apps.backend.services import graph_store
 from apps.backend.services.aqi_service import (
     fetch_all_cities_aqi,
     get_edge_pollution,
     get_pollution_weight_for_city,
 )
 from apps.backend.services.eco_route_model import choose_best_neighbor
-from apps.backend.services import graph_store
 from apps.simulator.evaluator import Graph, RLEnv, get_route
 from packages.shared.utils import percent_improvement
 

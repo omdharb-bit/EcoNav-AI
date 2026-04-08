@@ -1,5 +1,7 @@
 import uvicorn
+
 from apps.backend.main import app
+
 
 def main():
     """Server entry point as required by the OpenEnv validator."""

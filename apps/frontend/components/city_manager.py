@@ -5,8 +5,12 @@ Just type a city name and everything is handled automatically!
 
 import streamlit as st
 from services.api_client import (
-    fetch_graph, smart_add_city, remove_city,
-    add_road, remove_road, reset_graph,
+    add_road,
+    fetch_graph,
+    remove_city,
+    remove_road,
+    reset_graph,
+    smart_add_city,
 )
 
 

@@ -10,10 +10,10 @@ from fastapi.staticfiles import StaticFiles
 from apps.backend.api.aqi import router as aqi_router
 from apps.backend.api.credits import router as credits_router
 from apps.backend.api.graph import router as graph_router
-from apps.backend.api.route import router as eco_router
-from apps.backend.api.training import router as training_router
 from apps.backend.api.network import router as network_router
+from apps.backend.api.route import router as eco_router
 from apps.backend.api.simulate import router as simulate_router
+from apps.backend.api.training import router as training_router
 from apps.backend.core.config import settings
 from apps.backend.services.ai_model import choose_best_route
 from apps.backend.services.aqi_service import fetch_route_cities_aqi

@@ -1,6 +1,7 @@
-import streamlit as st
 import random
-import itertools
+
+import streamlit as st
+
 
 def render_environment_manager():
     """

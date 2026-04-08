@@ -6,7 +6,8 @@ from pydantic import BaseModel
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../packages/agent-engine")))
 from agent.rl_agent import RLAgent
-from packages.env_core.envs.pollution_env.env import ExposureCreditEnv, TASKS
+
+from packages.env_core.envs.pollution_env.env import TASKS, ExposureCreditEnv
 from packages.env_core.envs.pollution_env.models import Action
 
 router = APIRouter(tags=["Simulator Engine"])

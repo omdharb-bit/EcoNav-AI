@@ -1,5 +1,7 @@
-from fastapi import APIRouter
 import subprocess
+
+from fastapi import APIRouter
+
 from apps.backend.services.eco_route_model import reload_model
 
 router = APIRouter()

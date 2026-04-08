@@ -10,6 +10,7 @@ MANDATORY Checklist:
 """
 
 import os
+
 import requests
 from openai import OpenAI
 
@@ -57,7 +58,7 @@ def env_tasks() -> list[dict]:
             resp = requests.get(f"{ENV_URL}/tasks", timeout=10)
             resp.raise_for_status()
             return resp.json()["tasks"]
-        except Exception as e:
+        except Exception:
             if i == max_retries - 1:
                 raise # Re-raise on last try
             print(f"Waiting for environment... (attempt {i+1}/{max_retries})")
@@ -120,7 +121,7 @@ Reply with ONLY the city code (e.g., "E") — nothing else."""
         visited = set(observation.get("visited", []))
         unvisited = [v for v in valid if v not in visited]
         return unvisited[0] if unvisited else valid[0]
-    except Exception as e:
+    except Exception:
         # Final fallback - prioritize first neighbor's city
         if neighbors:
             return neighbors[0]["city"]
@@ -173,7 +174,7 @@ def run_evaluation():
             
         except Exception as e:
             print(f"Error during task: {e}")
-            print(f"[END] score=0.0001 grade=F reached=False")
+            print("[END] score=0.0001 grade=F reached=False")
 
 
 if __name__ == "__main__":

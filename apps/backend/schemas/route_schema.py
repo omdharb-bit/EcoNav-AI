@@ -7,6 +7,7 @@ class RouteRequest(BaseModel):
     start: str
     end: str
     traffic_multiplier: Optional[float] = 1.0
+    route_type: Optional[str] = "full"
 
 
 class RouteResponse(BaseModel):

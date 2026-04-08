@@ -178,6 +178,14 @@
                     <label for="end-node">📍 Destination City</label>
                     <input type="text" id="end-node" class="text-input" placeholder="Search any city... (e.g. Kolkata, Pune)" value="Kolkata">
                 </div>
+                <div class="input-group">
+                    <label for="route-type">🧭 Route Preference</label>
+                    <select id="route-type" class="text-input" style="width: 100%; height: 42px; border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 0 1rem; cursor: pointer;">
+                        <option value="shortest" style="background:#1e293b; color:#fff;">Shortest Path</option>
+                        <option value="medium" style="background:#1e293b; color:#fff;">Eco Route (Balanced)</option>
+                        <option value="full" selected style="background:#1e293b; color:#fff;">Full Eco Route (Max Priority)</option>
+                    </select>
+                </div>
             </div>
             
             <!-- Hidden traffic slider for normal view (default 1.0) -->

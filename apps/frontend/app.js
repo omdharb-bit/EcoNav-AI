@@ -207,9 +207,16 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
 }
 
+document.getElementById('route-type').addEventListener('change', () => {
+    if (!routeResults.classList.contains('hidden')) {
+        btnSubmit.click();
+    }
+});
+
 btnSubmit.addEventListener('click', async () => {
     const startStr = document.getElementById('start-node').value.trim();
     const endStr = document.getElementById('end-node').value.trim();
+    const routeType = document.getElementById('route-type').value;
     const multiplier = 1.0; 
     
     // UI Reset
@@ -228,7 +235,7 @@ btnSubmit.addEventListener('click', async () => {
             const response = await fetch('/api/v1/eco-route', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ start: startKey, end: endKey, traffic_multiplier: multiplier })
+                body: JSON.stringify({ start: startKey, end: endKey, traffic_multiplier: multiplier, route_type: routeType })
             });
             
             if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
@@ -240,25 +247,48 @@ btnSubmit.addEventListener('click', async () => {
             const [endLat, endLng] = await geocodeCity(endStr);
             
             const straightDist = calculateDistance(startLat, startLng, endLat, endLng);
-            const mockDist = Math.floor(straightDist * 1.3); // Apply ~1.3x routing modifier to straight line
-            
-            // Seed a consistent mock pollution value based on the city names so it doesn't change on refresh
             const seed = ((startStr.charCodeAt(0) || 0) + (endStr.charCodeAt(0) || 0)) % 100;
             const pseudoAqi = 50 + seed; // 50-150 AQI range
-            const mockPollution = mockDist * pseudoAqi * 0.04;
+            
+            let mockDist = straightDist * 1.3;
+            let mockPollution = mockDist * pseudoAqi * 0.04;
+            let improvement = "0%";
+            let customCoords = [[startLat, startLng], [endLat, endLng]];
+
+            if (routeType === 'shortest') {
+                mockDist = straightDist * 1.15;
+                mockPollution = mockDist * pseudoAqi * 0.05;
+                improvement = "0%";
+                customCoords = [[startLat, startLng], [endLat, endLng]];
+            } else if (routeType === 'medium') {
+                mockDist = straightDist * 1.25; 
+                mockPollution = mockDist * pseudoAqi * 0.04;
+                improvement = "8% (Simulated)";
+                const midLat = (startLat + endLat) / 2 + 1.5;
+                const midLng = (startLng + endLng) / 2 + 1.5;
+                customCoords = [[startLat, startLng], [midLat, midLng], [endLat, endLng]];
+            } else {
+                mockDist = straightDist * 1.4;
+                mockPollution = mockDist * pseudoAqi * 0.035; 
+                improvement = "15% (Simulated)";
+                const midLat = (startLat + endLat) / 2 + 2.5;
+                const midLng = (startLng + endLng) / 2 - 2.5;
+                customCoords = [[startLat, startLng], [midLat, midLng], [endLat, endLng]];
+            }
             
             data = {
-                route: [startStr, endStr],
-                custom_coords: [[startLat, startLng], [endLat, endLng]], // injected custom payload
+                route: customCoords.map((c, i) => i === 0 ? startStr : (i === customCoords.length - 1 ? endStr : "Detour Node")),
+                custom_coords: customCoords,
                 total_distance: mockDist,
                 total_pollution: mockPollution,
-                improvement: "12% (Simulated)",
+                shortest_route: [startStr, endStr],
+                improvement: improvement,
                 exposure_credits: {
                     final_credit_change: (Math.random() > 0.5 ? 20 : -10),
                     overall_grade: "B",
                     overall_emoji: "🟡",
                     segments: [
-                        {from: startStr, to: endStr, avg_aqi: Math.floor(Math.random()*200), credit_delta: 0, emoji: "🚦"}
+                        {from: startStr, to: endStr, avg_aqi: pseudoAqi, credit_delta: 0, emoji: "🚦"}
                     ]
                 }
             };
@@ -457,6 +487,15 @@ function renderRouteResults(data) {
     // Summary line
     const routeArr = data.route || [];
     document.getElementById('res-path').textContent = routeArr.map(n => CITY_NAMES[n] || n).join(' → ');
+    
+    // Update baseline if available
+    const shortPathEl = document.getElementById('short-path');
+    if (shortPathEl && data.shortest_route) {
+        shortPathEl.textContent = data.shortest_route.map(n => CITY_NAMES[n] || n).join(' → ');
+    } else if (shortPathEl) {
+        shortPathEl.textContent = "N/A (Simulated or no baseline)";
+    }
+
     document.getElementById('res-dist').textContent = `Distance: ${Math.round(data.total_distance)} km`;
     document.getElementById('res-exp').textContent = Math.round(data.total_pollution);
 
@@ -729,7 +768,8 @@ document.getElementById('btn-run-sim').addEventListener('click', async () => {
         const aqiData = [];
         
         data.timeline.forEach(step => {
-            logHtml += `<div style="padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.05);"><span style="color:#a855f7;">[Step ${step.step}]</span> Arrived: <strong>${step.city}</strong> <span style="color:#0ea5e9;">(AQI: ${step.aqi})</span> | Credits: <span style="color:#10b981;">${step.credits}</span></div>`;
+            const cityName = CITY_NAMES[step.city] || step.city;
+            logHtml += `<div style="padding: 0.3rem 0; border-bottom: 1px dashed rgba(255,255,255,0.05);"><span style="color:#a855f7;">[Step ${step.step}]</span> Arrived: <strong>${cityName}</strong> <span style="color:#0ea5e9;">(AQI: ${step.aqi})</span> | Credits: <span style="color:#10b981;">${step.credits}</span></div>`;
             labels.push(`Step ${step.step}`);
             creditsData.push(step.credits);
             aqiData.push(step.aqi);

@@ -72,8 +72,8 @@ class Routing:
         return None
 
 
-def get_route(graph, start, end):
-    return Routing(graph).dijkstra(start, end)
+def get_route(graph, start, end, **kwargs):
+    return Routing(graph).dijkstra(start, end, **kwargs)
 
 
 # ===================== RL ENV =====================

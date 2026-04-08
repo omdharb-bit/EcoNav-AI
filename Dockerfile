@@ -1,4 +1,15 @@
-# Use a specific slim Python image that matches openenv.yaml
+# Stage 1: Build the frontend
+FROM node:20-slim AS frontend-build
+WORKDIR /app
+COPY package*.json ./
+COPY apps/frontend/package*.json ./apps/frontend/
+RUN npm cache clean --force
+RUN npm install --force
+COPY . .
+WORKDIR /app/apps/frontend
+RUN npx vite build
+
+# Stage 2: Final image
 FROM python:3.10-slim
 
 # Set environment variables
@@ -6,37 +17,33 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=7860
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies with better error handling and common tools
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
+# Install uv and requirements
 RUN pip install --no-cache-dir uv
-
-# Copy ONLY requirements first to leverage Docker cache
 COPY requirements/ ./requirements/
 COPY pyproject.toml uv.lock ./
-
-# Install project dependencies with uv
 RUN uv pip install --system --no-cache -r requirements/backend.txt -r requirements/ml.txt
 
-# Copy the rest of the application
+# Copy everything
 COPY . .
 
-# Set up a new user named "user" with UID 1000 for HF Spaces compatibility
+# Copy the bundled frontend from Stage 1
+COPY --from=frontend-build /app/apps/frontend/dist /app/apps/frontend/dist
+
+# Set up user for HF
 RUN useradd -m -u 1000 user && \
     chown -R user:user /app
 USER user
 ENV PATH="/home/user/.local/bin:$PATH"
 
-# Expose the standard Hugging Face Space port
 EXPOSE 7860
 
-# Run the FastAPI app on the port HF expects
+# Run the backend (which now serves the dist folder)
 CMD ["uvicorn", "apps.backend.main:app", "--host", "0.0.0.0", "--port", "7860"]

@@ -6,14 +6,15 @@ WORKDIR /app
 COPY package*.json ./
 COPY apps/frontend/package*.json ./apps/frontend/
 
-RUN npm install
+RUN npm cache clean --force
+RUN npm install --force
 
 # Copy everything
 COPY . .
 
 # Build the frontend
 WORKDIR /app/apps/frontend
-RUN npm run build
+RUN npx vite build --debug
 
 # Use nginx to serve the static content
 FROM nginx:stable-alpine

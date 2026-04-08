@@ -64,12 +64,17 @@ def get_best_route():
     return {"best_route": best, "all_routes": all_routes}
 
 
-# Serve frontend at root - mount this LAST to avoid stealing API routes
-frontend_path = os.path.abspath("apps/frontend")
-public_path = os.path.join(frontend_path, "public")
+# Serve frontend - check for production 'dist' folder first, otherwise serve source
+base_path = os.path.abspath("apps/frontend")
+dist_path = os.path.join(base_path, "dist")
 
-# Mount public assets first so they are available at the root URL
-if os.path.exists(public_path):
-    app.mount("/", StaticFiles(directory=public_path), name="public")
-
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+if os.path.exists(dist_path):
+    public_path = dist_path
+    app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
+else:
+    public_path = base_path
+    # Standard public folder mount for source serving (Vite style)
+    extra_public = os.path.join(base_path, "public")
+    if os.path.exists(extra_public):
+        app.mount("/", StaticFiles(directory=extra_public), name="public_assets")
+    app.mount("/", StaticFiles(directory=base_path, html=True), name="frontend")

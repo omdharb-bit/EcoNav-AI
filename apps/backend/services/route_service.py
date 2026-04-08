@@ -90,7 +90,7 @@ def _build_graph_with_real_aqi(traffic_multiplier: float = 1.0) -> tuple[Graph, 
 # =====================
 # MAIN SERVICE
 # =====================
-def get_route_service(start: str, end: str, traffic_multiplier: float = 1.0):
+def get_route_service(start: str, end: str, traffic_multiplier: float = 1.0, route_type: str = "full"):
     """Compute eco-route using real-time AQI pollution data."""
 
     g, aqi_info = _build_graph_with_real_aqi(traffic_multiplier)
@@ -100,49 +100,53 @@ def get_route_service(start: str, end: str, traffic_multiplier: float = 1.0):
         return {"error": "Invalid start or end node"}
 
     # BASELINE ROUTE (shortest path)
-    baseline = get_route(g, start, end)
+    baseline = get_route(g, start, end, alpha=1.0)
     shortest_path = baseline["path"]
     shortest_exposure = baseline["total_exposure"]
 
     # RL ENV ROUTE (eco-optimised)
-    env = RLEnv(g, start=start, destination=end)
-
-    state = env.reset()
-    path = [state]
-
-    done = False
-    visited = set()
-    steps = 0
-
-    while not done:
-        visited.add(state)
-
-        neighbors = g.get_neighbors(state)
-        neighbors = [(n, d, p) for (n, d, p) in neighbors if n not in visited]
-
-        if not neighbors:
-            break
-
-        action = choose_best_neighbor(
-            type("obj", (), {"total_exposure": 0}),
-            neighbors,
-            destination=end,
-        )
-
-        next_state, reward, done = env.step(action)
-
-        path.append(next_state)
-        state = next_state
-
-        steps += 1
-        if steps > 20:
-            break
-
-    # FALLBACK
-    if len(path) < 2 or path[-1] != end:
+    if route_type == "shortest":
         eco_path = shortest_path
     else:
-        eco_path = path
+        env = RLEnv(g, start=start, destination=end)
+    
+        state = env.reset()
+        path = [state]
+    
+        done = False
+        visited = set()
+        steps = 0
+    
+        while not done:
+            visited.add(state)
+    
+            neighbors = g.get_neighbors(state)
+            neighbors = [(n, d, p) for (n, d, p) in neighbors if n not in visited]
+    
+            if not neighbors:
+                break
+    
+            action = choose_best_neighbor(
+                type("obj", (), {"total_exposure": 0}),
+                neighbors,
+                destination=end,
+                route_type=route_type,
+            )
+    
+            next_state, reward, done = env.step(action)
+    
+            path.append(next_state)
+            state = next_state
+    
+            steps += 1
+            if steps > 20:
+                break
+    
+        # FALLBACK
+        if len(path) < 2 or path[-1] != end:
+            eco_path = shortest_path
+        else:
+            eco_path = path
 
     # METRICS
     eco_exposure = compute_exposure(g, eco_path)

@@ -42,16 +42,30 @@ def reload_model():
         print(f"[WARN] Model file not found at: {MODEL_PATH}. Using defaults.")
 
 
-def predict_score_from_env(state, node, distance, pollution):
+def predict_score_from_env(state, node, distance, pollution, route_type="full"):
     _ = node
+    
+    if route_type == "shortest":
+        w_dist = 1.0
+        w_poll = 0.0
+        w_exp = 0.0
+    elif route_type == "medium":
+        w_dist = 0.5
+        w_poll = 0.25
+        w_exp = 0.25
+    else:  # full eco
+        w_dist = _weights["distance_weight"]
+        w_poll = _weights["pollution_weight"]
+        w_exp = _weights["exposure_weight"]
+        
     return (
-        distance * _weights["distance_weight"]
-        + pollution * _weights["pollution_weight"]
-        + state.total_exposure * _weights["exposure_weight"]
+        distance * w_dist
+        + pollution * w_poll
+        + state.total_exposure * w_exp
     )
 
 
-def choose_best_neighbor(state, neighbors, destination):
+def choose_best_neighbor(state, neighbors, destination, route_type="full"):
     if not neighbors:
         raise ValueError("No neighbors available for decision")
 
@@ -59,7 +73,7 @@ def choose_best_neighbor(state, neighbors, destination):
     best_score = float("inf")
 
     for node, distance, pollution in neighbors:
-        model_score = predict_score_from_env(state, node, distance, pollution)
+        model_score = predict_score_from_env(state, node, distance, pollution, route_type)
         goal_bonus = -10 if node == destination else 0
         final_score = model_score + goal_bonus
 
